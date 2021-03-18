@@ -4,11 +4,11 @@ categories = ["filesystem", "development-tools::testing"]
 description = "Simple temporary directory with cleanup"
 edition = "2018"
 keywords = ["dir", "temp", "tmpdir", "tempdir", "mkdtemp"]
-license-file = "LICENSE"
+license = "Apache-2.0"
 name = "temp-dir"
 readme = "Readme.md"
 repository = "https://gitlab.com/leonhard-llc/ops"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 
