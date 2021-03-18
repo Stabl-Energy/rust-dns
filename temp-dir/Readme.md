@@ -64,7 +64,7 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.0
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.1
 
 0/0        0/0          0/0    0/0     0/0    
 
