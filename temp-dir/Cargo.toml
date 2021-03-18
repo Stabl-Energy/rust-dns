@@ -1,0 +1,15 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["filesystem", "development-tools::testing"]
+description = "Simple temporary directory with cleanup"
+edition = "2018"
+keywords = ["temporary", "directory", "dir", "tmp", "temp", "tmpdir", "tempdir", "mkdir", "mkdtemp", "tempnam"]
+name = "temp-dir"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
+safe-lock = { path = "../safe-lock", version = "^0.1" }
