@@ -20,6 +20,7 @@ check_all() {
   cargo_check_build_test
   time check_crate safe-lock
   time check_crate temp-dir
+  time check_crate temp-file
   echo "$0 finished"
 }
 

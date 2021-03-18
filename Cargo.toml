@@ -3,4 +3,5 @@
 members = [
     "safe-lock",
     "temp-dir",
+    "temp-file",
 ]

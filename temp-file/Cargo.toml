@@ -1,0 +1,16 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["filesystem", "development-tools::testing"]
+description = "Simple temporary file with cleanup"
+edition = "2018"
+keywords = ["temp", "file", "tmpfile", "mktemp", "tempnam"]
+license = "Apache-2.0"
+name = "temp-file"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
+safe-lock = { path = "../safe-lock", version = "^0.1" }
