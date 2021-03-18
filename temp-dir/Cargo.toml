@@ -4,6 +4,7 @@ categories = ["filesystem", "development-tools::testing"]
 description = "Simple temporary directory with cleanup"
 edition = "2018"
 keywords = ["dir", "temp", "tmpdir", "tempdir", "mkdtemp"]
+license = ""
 name = "temp-dir"
 readme = "Readme.md"
 repository = "https://gitlab.com/leonhard-llc/ops"
