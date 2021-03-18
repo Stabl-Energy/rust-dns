@@ -18,6 +18,7 @@ check_crate() {
 check_all() {
   cd "$TOP_LEVEL_DIR"
   cargo_check_build_test
+  time check_crate safe-lock
   echo "$0 finished"
 }
 
