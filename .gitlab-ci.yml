@@ -1,0 +1,35 @@
+# https://doc.rust-lang.org/cargo/guide/continuous-integration.html#gitlab-ci
+# https://users.rust-lang.org/t/my-gitlab-config-docs-tests/16396/3
+# https://docs.gitlab.com/ee/ci/yaml/
+
+stages:
+  - stage1
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CARGO_TARGET_DIR: $CI_PROJECT_DIR/target
+
+cache:
+  # Increment the 'gen' number to clear the caches.
+  key: $CI_JOB_NAME-$CI_COMMIT_BRANCH-gen0
+  paths:
+    - $CARGO_TARGET_DIR/
+    - $CARGO_HOME/
+
+rust-stable:
+  stage: stage1
+  image: rust:latest
+  script:
+    - rustc --version && cargo --version
+    - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
+    - cargo install cargo-readme
+    - ls -alF "$CI_PROJECT_DIR"
+    # Once cargo-geiger releases 0.11, install it with cargo not git.
+    # https://github.com/rust-secure-code/cargo-geiger/issues/177
+    - git clone https://github.com/rust-secure-code/cargo-geiger.git "$CI_BUILDS_DIR"/cargo-geiger
+    - (cd "$CI_BUILDS_DIR"/cargo-geiger/cargo-geiger && git checkout 2c03b2c7370da1b040e09de630816a3632a96cf0 && cargo build --release --features vendored-openssl)
+    - mv "$CARGO_TARGET_DIR"/release/cargo-geiger "$CARGO_HOME"/bin/
+    - cargo fmt --version || rustup component add rustfmt
+    - cargo clippy --version || rustup component add clippy
+    - ./check-all.sh
+    - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
