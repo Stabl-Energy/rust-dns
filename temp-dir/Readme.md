@@ -18,10 +18,10 @@ Provides a `TempDir` struct.
 - Not security-hardened.
 
 ## Alternatives
- - [`test_dir`](https://crates.io/crates/test_dir)
+- [`test_dir`](https://crates.io/crates/test_dir)
   - Has a handy `TestDir` struct
   - Incomplete documentation
- - [`temp_testdir`](https://crates.io/crates/temp_testdir)
+- [`temp_testdir`](https://crates.io/crates/temp_testdir)
   - Incomplete documentation
 - [`mktemp`](https://crates.io/crates/mktemp)
   - Sets directory mode 0700 on unix
@@ -64,7 +64,7 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.2
 
 0/0        0/0          0/0    0/0     0/0    
 

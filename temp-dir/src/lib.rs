@@ -18,10 +18,10 @@
 //! - Not security-hardened.
 //!
 //! ## Alternatives
-//!  - [`test_dir`](https://crates.io/crates/test_dir)
+//! - [`test_dir`](https://crates.io/crates/test_dir)
 //!   - Has a handy `TestDir` struct
 //!   - Incomplete documentation
-//!  - [`temp_testdir`](https://crates.io/crates/temp_testdir)
+//! - [`temp_testdir`](https://crates.io/crates/temp_testdir)
 //!   - Incomplete documentation
 //! - [`mktemp`](https://crates.io/crates/mktemp)
 //!   - Sets directory mode 0700 on unix
