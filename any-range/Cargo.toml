@@ -1,0 +1,15 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["data-structures"]
+description = "AnyRange<T> enum can hold any Range*<T> type"
+edition = "2018"
+keywords = ["range", "any"]
+license = "Apache-2.0"
+name = "any-range"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]

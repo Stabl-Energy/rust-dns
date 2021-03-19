@@ -1,6 +1,7 @@
 # https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
 [workspace]
 members = [
+    "any-range",
     "safe-lock",
     "temp-dir",
     "temp-file",
