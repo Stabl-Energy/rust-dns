@@ -64,11 +64,17 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.2
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.3
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
+## Changelog
+- v0.1.3 - Minor code cleanup, update docs
+- v0.1.2 - Update docs
+- v0.1.1 - Fix license
+- v0.1.0 - Initial version
+
 ## Happy Contributors 🙂
 Fixing bugs and adding features is easy and fast.
 Send us a pull request and we intend to:
