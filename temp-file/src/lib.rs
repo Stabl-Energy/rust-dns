@@ -55,6 +55,12 @@
 //!
 //! ## Cargo Geiger Safety Report
 //!
+//! ## Happy Contributors 🙂
+//! Fixing bugs and adding features is easy and fast.
+//! Send us a pull request and we intend to:
+//! - Always respond within 24 hours
+//! - Provide clear & concrete feedback
+//! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::path::{Path, PathBuf};
