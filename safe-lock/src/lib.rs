@@ -83,6 +83,10 @@
 //!
 //! ## Cargo Geiger Safety Report
 //!
+//! ## Changelog
+//! - v0.1.1 - Update docs
+//! - v0.1.0 - Initial version
+//!
 //! ## Happy Contributors 🙂
 //! Fixing bugs and adding features is easy and fast.
 //! Send us a pull request and we intend to:
