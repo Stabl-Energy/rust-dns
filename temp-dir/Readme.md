@@ -11,7 +11,7 @@ Provides a `TempDir` struct.
 - Makes a directory in a system temporary directory
 - Recursively deletes the directory and its contents on drop
 - Optional name prefix
-- No dependencies
+- Depends only on `std`
 - `forbid(unsafe_code)`
 
 ## Limitations

@@ -12,7 +12,7 @@ Provides a `TempFile` struct.
 - Deletes the file on drop
 - Optional file name prefix
 - Optional file contents
-- No dependencies
+- Depends only on `std`
 - `forbid(unsafe_code)`
 
 ## Limitations
