@@ -116,8 +116,7 @@ impl TempDir {
     /// println!("{:?}", temp_dir::TempDir::with_prefix("ok").unwrap().path());
     /// ```
     pub fn with_prefix(prefix: impl AsRef<str>) -> Result<Self, String> {
-        let mut path_buf: PathBuf = std::env::temp_dir();
-        path_buf.push(format!(
+        let path_buf = std::env::temp_dir().join(format!(
             "{}{:x}-{:x}",
             prefix.as_ref(),
             std::process::id(),

@@ -119,8 +119,7 @@ impl TempFile {
         let mut open_opts = std::fs::OpenOptions::new();
         open_opts.create_new(true);
         open_opts.write(true);
-        let mut path_buf: PathBuf = std::env::temp_dir();
-        path_buf.push(format!(
+        let path_buf = std::env::temp_dir().join(format!(
             "{}{:x}{:x}",
             prefix.as_ref(),
             std::process::id(),
