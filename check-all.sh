@@ -18,6 +18,12 @@ check_crate() {
 check_all() {
   cd "$TOP_LEVEL_DIR"
   cargo_check_build_test
+
+  # https://github.com/rust-secure-code/cargo-geiger/issues/145
+  SKIP_CARGO_GEIGER=1
+  time check_crate rustls-pin
+  SKIP_CARGO_GEIGER=
+
   time check_crate any-range
   time check_crate safe-lock
   time check_crate temp-dir

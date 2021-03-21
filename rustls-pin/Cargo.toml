@@ -1,0 +1,18 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["network-programming", "cryptography"]
+description = "Server certificate pinning with `rustls`"
+edition = "2018"
+keywords = ["pin", "pinning", "rustls", "tls", "certificate"]
+license = "Apache-2.0"
+name = "rustls-pin"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+rustls = { version = "^0.19.0", features = ["dangerous_configuration"] }
+webpki = "^0.21.4"
+
+[dev-dependencies]
+base64 = "^0.13.0"

@@ -11,11 +11,13 @@ usage() {
 
 TOOLCHAIN_ARG=
 ALLOW_DIRTY_ARG=
+SKIP_CARGO_GEIGER=
 
 while :; do
   case "$1" in
   +*) TOOLCHAIN_ARG="$1" ;;
   --allow-dirty) ALLOW_DIRTY_ARG=--allow-dirty ;;
+  --skip-cargo-geiger) SKIP_CARGO_GEIGER=1 ;;
   '') break ;;
   *) usage "bad argument '$1'" ;;
   esac
@@ -28,7 +30,9 @@ generate_readme() {
   set -e
   set -x
   time $CARGO_CMD readme --no-title --no-indent-headings >"$1"
-  time $CARGO_CMD geiger --update-readme --readme-path "$1" --output-format GitHubMarkdown
+  if [ -z "$SKIP_CARGO_GEIGER" ]; then
+    time $CARGO_CMD geiger --update-readme --readme-path "$1" --output-format GitHubMarkdown
+  fi
 }
 
 check_readme() {
