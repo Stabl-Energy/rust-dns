@@ -37,11 +37,7 @@ Provides a `TempFile` struct.
 
 ## Example
 ```rust
-use temp_file::TempFile;
-let t = TempFile::new()
-  .unwrap()
-  .with_contents(b"abc")
-  .unwrap();
+let t = temp_file::with_contents(b"abc");
 // Prints "/tmp/1a9b0".
 println!("{:?}", t.path());
 assert_eq!(
@@ -49,8 +45,7 @@ assert_eq!(
   std::fs::read_to_string(t.path()).unwrap(),
 );
 // Prints "/tmp/1a9b1".
-println!(
-    "{:?}", TempFile::new().unwrap().path());
+println!("{:?}", temp_file::empty().path());
 ```
 
 ## Cargo Geiger Safety Report
@@ -67,12 +62,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.2
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.2 - Update example
 - v0.1.1 - Minor code cleanup, update docs
 - v0.1.0 - Initial version
 
