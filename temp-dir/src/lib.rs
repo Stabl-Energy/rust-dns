@@ -17,6 +17,12 @@
 //!
 //! ## Limitations
 //! - Not security-hardened.
+//!   For example, directory and file names are predictable.
+//! - This crate uses
+//!   [`std::fs::remove_dir_all`](https://doc.rust-lang.org/stable/std/fs/fn.remove_dir_all.html)
+//!   which may be unreliable on Windows.
+//!   See [rust#29497](https://github.com/rust-lang/rust/issues/29497) and
+//!   [`remove_dir_all`](https://crates.io/crates/remove_dir_all) crate.
 //!
 //! ## Alternatives
 //! - [`tempfile`](https://crates.io/crates/tempfile)
@@ -58,6 +64,11 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.7 - Update docs:
+//!   Warn about `std::fs::remove_dir_all` being unreliable on Windows.
+//!   Warn about predictable directory and file names.
+//!   Thanks to Reddit user
+//!   [burntsushi](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/gruo5iu/).
 //! - v0.1.6 - Add
 //!     [`TempDir::panic_on_cleanup_error`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.panic_on_cleanup_error).
 //!     Thanks to Reddit users
