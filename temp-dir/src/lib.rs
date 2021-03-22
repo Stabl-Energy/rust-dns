@@ -364,9 +364,8 @@ mod test {
     fn drop_error_panic() {
         // On Gitlab's shared CI runners, the cleanup always succeeds and the
         // test fails.
-        match option_env!("CI_SERVER_NAME") {
-            Some(s) if s == "GitLab" => return,
-            _ => {}
+        if std::env::var("CI").is_ok() {
+            return;
         }
         let _guard = LOCK.lock();
         let temp_dir = TempDir::new().unwrap().panic_on_cleanup_error();
