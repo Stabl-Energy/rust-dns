@@ -95,12 +95,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  safe-lock 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  safe-lock 0.1.2
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.2 - Use `Acquire` and `Release` ordering
 - v0.1.1 - Update docs
 - v0.1.0 - Initial version
 
