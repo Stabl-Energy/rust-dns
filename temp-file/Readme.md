@@ -21,6 +21,11 @@ Provides a `TempFile` struct.
   and [`mkstemp`](https://linux.die.net/man/3/mkstemp).
 
 ## Alternatives
+- [`tempfile`](https://crates.io/crates/tempfile)
+  - Popular and mature
+  - Supports some security-sensitive use cases
+  - Contains `unsafe`, dependencies full of `unsafe`
+  - Heavy dependencies (libc, winapi, rand, etc.)
 - [`test-temp-file`](https://crates.io/crates/test-temp-file)
   - Depends on crates which contain `unsafe`
   - Incomplete documentation
@@ -62,12 +67,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.2
+0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.3
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.3 - Update docs
 - v0.1.2 - Update example
 - v0.1.1 - Minor code cleanup, update docs
 - v0.1.0 - Initial version

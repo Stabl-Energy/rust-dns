@@ -18,6 +18,10 @@
 //! - Not security-hardened.
 //!
 //! ## Alternatives
+//! - [`tempfile`](https://crates.io/crates/tempfile)
+//!   - Popular and mature
+//!   - Contains `unsafe`, dependencies full of `unsafe`
+//!   - Heavy dependencies (libc, winapi, rand, etc.)
 //! - [`test_dir`](https://crates.io/crates/test_dir)
 //!   - Has a handy `TestDir` struct
 //!   - Incomplete documentation
@@ -53,6 +57,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.4 - Update docs
 //! - v0.1.3 - Minor code cleanup, update docs
 //! - v0.1.2 - Update docs
 //! - v0.1.1 - Fix license
