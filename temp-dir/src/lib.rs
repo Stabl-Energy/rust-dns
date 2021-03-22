@@ -58,7 +58,15 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
-//! - v0.1.5 - Explain how it handles symbolic links.
+//! - v0.1.5
+//!   - Add
+//!     [`TempDir::panic_on_cleanup_error`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.panic_on_cleanup_error).
+//!     Thanks to Reddit users
+//!     [`KhorneLordOfChaos`](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/grsb5s3/)
+//!     and
+//!     [`dpc_pw`](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/gru26df/)
+//!     for their comments.
+//!   - Explain how it handles symbolic links.
 //!   Thanks to Reddit user Mai4eeze for this
 //!   [idea](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/grsoz2g/).
 //! - v0.1.4 - Update docs
@@ -82,8 +90,10 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 /// The path of an existing writable directory in a system temporary directory.
 ///
 /// Drop the struct to delete the directory and everything under it.
-/// Ignores any error while deleting.
 /// Deletes symbolic links and does not follow them.
+///
+/// Ignores any error while deleting.
+/// See [`TempDir::panic_on_cleanup_error`](struct.TempDir.html#method.panic_on_cleanup_error).
 ///
 /// # Example
 /// ```rust
@@ -104,14 +114,17 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 /// ```
 #[derive(Clone, PartialOrd, PartialEq, Debug)]
 pub struct TempDir {
-    path_buf: PathBuf,
+    path_buf: Option<PathBuf>,
+    panic_on_delete_err: bool,
 }
 impl TempDir {
     /// Create a new empty directory in a system temporary directory.
     ///
     /// Drop the struct to delete the directory and everything under it.
-    /// Ignores any error while deleting.
     /// Deletes symbolic links and does not follow them.
+    ///
+    /// Ignores any error while deleting.
+    /// See [`TempDir::panic_on_cleanup_error`](struct.TempDir.html#method.panic_on_cleanup_error).
     ///
     /// # Errors
     /// Returns `Err` when it fails to create the directory.
@@ -130,8 +143,10 @@ impl TempDir {
     /// Use `prefix` as the first part of the directory's name.
     ///
     /// Drop the struct to delete the directory and everything under it.
-    /// Ignores any error while deleting.
     /// Deletes symbolic links and does not follow them.
+    ///
+    /// Ignores any error while deleting.
+    /// See [`TempDir::panic_on_cleanup_error`](struct.TempDir.html#method.panic_on_cleanup_error).
     ///
     /// # Errors
     /// Returns `Err` when it fails to create the directory.
@@ -150,26 +165,46 @@ impl TempDir {
         ));
         std::fs::create_dir(&path_buf)
             .map_err(|e| format!("error creating directory {:?}: {}", &path_buf, e))?;
-        Ok(Self { path_buf })
+        Ok(Self {
+            path_buf: Some(path_buf),
+            panic_on_delete_err: false,
+        })
+    }
+
+    /// Make the struct panic on Drop if it hits an error while
+    /// removing the directory or its contents.
+    #[must_use]
+    pub fn panic_on_cleanup_error(mut self) -> Self {
+        Self {
+            path_buf: self.path_buf.take(),
+            panic_on_delete_err: true,
+        }
     }
 
     /// The path to the directory.
     #[must_use]
     pub fn path(&self) -> &Path {
-        &self.path_buf
+        self.path_buf.as_ref().unwrap()
     }
 
     /// The path to `name` under the directory.
     #[must_use]
     pub fn child(&self, name: impl AsRef<str>) -> PathBuf {
-        let mut result = self.path_buf.clone();
+        let mut result = self.path_buf.as_ref().unwrap().clone();
         result.push(name.as_ref());
         result
     }
 }
 impl Drop for TempDir {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path_buf);
+        if let Some(path) = &self.path_buf {
+            let result = std::fs::remove_dir_all(path);
+            if self.panic_on_delete_err {
+                if let Err(e) = result {
+                    panic!("error removing directory and contents {:?}: {}", path, e);
+                }
+            }
+        }
     }
 }
 
@@ -193,7 +228,7 @@ mod test {
     }
 
     #[test]
-    fn test_new() {
+    fn new() {
         let _guard = LOCK.lock();
         let temp_dir = TempDir::new().unwrap();
         println!("{:?}", temp_dir);
@@ -205,7 +240,7 @@ mod test {
     }
 
     #[test]
-    fn test_new_error() {
+    fn new_error() {
         let _guard = LOCK.lock();
         let previous_counter_value = COUNTER.load(Ordering::SeqCst);
         let temp_dir = TempDir::new().unwrap();
@@ -220,7 +255,7 @@ mod test {
     }
 
     #[test]
-    fn test_with_prefix() {
+    fn with_prefix() {
         let _guard = LOCK.lock();
         let temp_dir = TempDir::with_prefix("prefix1").unwrap();
         let name = temp_dir.path().file_name().unwrap();
@@ -236,7 +271,7 @@ mod test {
     }
 
     #[test]
-    fn test_with_prefix_error() {
+    fn with_prefix_error() {
         let _guard = LOCK.lock();
         let previous_counter_value = COUNTER.load(Ordering::SeqCst);
         let temp_dir = TempDir::with_prefix("prefix1").unwrap();
@@ -251,7 +286,7 @@ mod test {
     }
 
     #[test]
-    fn test_child() {
+    fn child() {
         let _guard = LOCK.lock();
         let temp_dir = TempDir::new().unwrap();
         let file1_path = temp_dir.child("file1");
@@ -271,23 +306,86 @@ mod test {
     #[test]
     fn test_drop() {
         let _guard = LOCK.lock();
-        let dir_path;
-        let file1_path;
-        {
-            let temp_dir = TempDir::new().unwrap();
-            dir_path = temp_dir.path().to_path_buf();
-            file1_path = temp_dir.child("file1");
-            std::fs::write(&file1_path, b"abc").unwrap();
-            TempDir::new().unwrap();
-        }
+        let temp_dir = TempDir::new().unwrap();
+        let dir_path = temp_dir.path().to_path_buf();
+        let file1_path = temp_dir.child("file1");
+        std::fs::write(&file1_path, b"abc").unwrap();
+        TempDir::new().unwrap();
+        drop(temp_dir);
         expect_not_found(&dir_path);
         expect_not_found(&file1_path);
     }
 
     #[test]
-    fn test_drop_already_deleted() {
+    fn drop_already_deleted() {
         let _guard = LOCK.lock();
         let temp_dir = TempDir::new().unwrap();
         std::fs::remove_dir(temp_dir.path()).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn drop_error_ignored() {
+        let _guard = LOCK.lock();
+        let temp_dir = TempDir::new().unwrap();
+        let dir_path = temp_dir.path().to_path_buf();
+        let file1_path = temp_dir.child("file1");
+        std::fs::write(&file1_path, b"abc").unwrap();
+        assert!(std::process::Command::new("chmod")
+            .arg("-w")
+            .arg(temp_dir.path())
+            .status()
+            .unwrap()
+            .success());
+        drop(temp_dir);
+        std::fs::metadata(&dir_path).unwrap();
+        std::fs::metadata(&file1_path).unwrap();
+        assert!(std::process::Command::new("chmod")
+            .arg("u+w")
+            .arg(&dir_path)
+            .status()
+            .unwrap()
+            .success());
+        std::fs::remove_dir_all(&dir_path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn drop_error_panic() {
+        let _guard = LOCK.lock();
+        let temp_dir = TempDir::new().unwrap().panic_on_cleanup_error();
+        let dir_path = temp_dir.path().to_path_buf();
+        let file1_path = temp_dir.child("file1");
+        std::fs::write(&file1_path, b"abc").unwrap();
+        assert!(std::process::Command::new("chmod")
+            .arg("-w")
+            .arg(temp_dir.path())
+            .status()
+            .unwrap()
+            .success());
+        let result = std::panic::catch_unwind(move || drop(temp_dir));
+        std::fs::metadata(&dir_path).unwrap();
+        std::fs::metadata(&file1_path).unwrap();
+        assert!(std::process::Command::new("chmod")
+            .arg("u+w")
+            .arg(&dir_path)
+            .status()
+            .unwrap()
+            .success());
+        std::fs::remove_dir_all(&dir_path).unwrap();
+        match result {
+            Ok(_) => panic!("expected panic"),
+            Err(any) => {
+                let e = any.downcast::<String>().unwrap();
+                assert!(
+                    e.starts_with(&format!(
+                        "error removing directory and contents {:?}: ",
+                        dir_path
+                    )),
+                    "unexpected error {:?}",
+                    e
+                );
+            }
+        }
     }
 }
