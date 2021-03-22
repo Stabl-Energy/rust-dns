@@ -10,6 +10,7 @@ Provides a `TempDir` struct.
 ## Features
 - Makes a directory in a system temporary directory
 - Recursively deletes the directory and its contents on drop
+- Deletes symbolic links and does not follow them.
 - Optional name prefix
 - Depends only on `std`
 - `forbid(unsafe_code)`
@@ -68,12 +69,15 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.4
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.5
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.5 - Explain how it handles symbolic links.
+  Thanks to Reddit user Mai4eeze for this
+  [idea](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/grsoz2g/).
 - v0.1.4 - Update docs
 - v0.1.3 - Minor code cleanup, update docs
 - v0.1.2 - Update docs

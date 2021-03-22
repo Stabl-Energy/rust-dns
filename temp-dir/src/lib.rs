@@ -10,6 +10,7 @@
 //! ## Features
 //! - Makes a directory in a system temporary directory
 //! - Recursively deletes the directory and its contents on drop
+//! - Deletes symbolic links and does not follow them.
 //! - Optional name prefix
 //! - Depends only on `std`
 //! - `forbid(unsafe_code)`
@@ -57,6 +58,9 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.5 - Explain how it handles symbolic links.
+//!   Thanks to Reddit user Mai4eeze for this
+//!   [idea](https://www.reddit.com/r/rust/comments/ma6y0x/tempdir_simple_temporary_directory_with_cleanup/grsoz2g/).
 //! - v0.1.4 - Update docs
 //! - v0.1.3 - Minor code cleanup, update docs
 //! - v0.1.2 - Update docs
@@ -77,8 +81,9 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// The path of an existing writable directory in a system temporary directory.
 ///
-/// Recursively deletes the directory and its contents on drop.
+/// Drop the struct to delete the directory and everything under it.
 /// Ignores any error while deleting.
+/// Deletes symbolic links and does not follow them.
 ///
 /// # Example
 /// ```rust
@@ -104,7 +109,9 @@ pub struct TempDir {
 impl TempDir {
     /// Create a new empty directory in a system temporary directory.
     ///
-    /// Drop the returned struct to delete the directory and everything under it.
+    /// Drop the struct to delete the directory and everything under it.
+    /// Ignores any error while deleting.
+    /// Deletes symbolic links and does not follow them.
     ///
     /// # Errors
     /// Returns `Err` when it fails to create the directory.
@@ -122,7 +129,9 @@ impl TempDir {
     /// Create a new empty directory in a system temporary directory.
     /// Use `prefix` as the first part of the directory's name.
     ///
-    /// Drop the returned struct to delete the directory and everything under it.
+    /// Drop the struct to delete the directory and everything under it.
+    /// Ignores any error while deleting.
+    /// Deletes symbolic links and does not follow them.
     ///
     /// # Errors
     /// Returns `Err` when it fails to create the directory.
