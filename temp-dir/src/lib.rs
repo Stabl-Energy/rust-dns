@@ -64,6 +64,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.8 - Add [`leak`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.leak).
 //! - v0.1.7 - Update docs:
 //!   Warn about `std::fs::remove_dir_all` being unreliable on Windows.
 //!   Warn about predictable directory and file names.
@@ -189,6 +190,14 @@ impl TempDir {
             path_buf: self.path_buf.take(),
             panic_on_delete_err: true,
         }
+    }
+
+    /// Do not delete the directory or its contents.
+    ///
+    /// This is useful when debugging a test.
+    #[must_use]
+    pub fn leak(mut self) -> () {
+        self.path_buf.take();
     }
 
     /// The path to the directory.
@@ -402,5 +411,18 @@ mod test {
                 );
             }
         }
+    }
+
+    #[test]
+    fn leak() {
+        let _guard = LOCK.lock();
+        let temp_dir = TempDir::new().unwrap();
+        let dir_path = temp_dir.path().to_path_buf();
+        let file1_path = temp_dir.child("file1");
+        std::fs::write(&file1_path, b"abc").unwrap();
+        temp_dir.leak();
+        std::fs::metadata(&dir_path).unwrap();
+        std::fs::metadata(&file1_path).unwrap();
+        std::fs::remove_dir_all(&dir_path).unwrap();
     }
 }
