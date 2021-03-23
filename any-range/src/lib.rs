@@ -13,6 +13,7 @@
 //! ## Features
 //! - `no_std`, depends only on `core`
 //! - `forbid(unsafe_code)`
+//! - 100% test coverage
 //!
 //! ## Limitations
 //! - Uses more bytes than a plain `Range<T>`.
@@ -34,6 +35,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.2 - Increase test coverage
 //! - v0.1.1 - Update docs
 //! - v0.1.0 - Initial version
 //!
