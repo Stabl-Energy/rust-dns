@@ -195,7 +195,6 @@ impl TempDir {
     /// Do not delete the directory or its contents.
     ///
     /// This is useful when debugging a test.
-    #[must_use]
     pub fn leak(mut self) -> () {
         self.path_buf.take();
     }
@@ -228,7 +227,7 @@ impl Drop for TempDir {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{TempDir, COUNTER};
     use core::sync::atomic::Ordering;
     use safe_lock::SafeLock;
@@ -372,8 +371,9 @@ mod test {
     #[test]
     fn drop_error_panic() {
         // On Gitlab's shared CI runners, the cleanup always succeeds and the
-        // test fails.
-        if std::env::var("CI").is_ok() {
+        // test fails.  So we skip this test when it's running on Gitlab CI.
+        if std::env::current_dir().unwrap().starts_with("/builds/") {
+            println!("Running on Gitlab CI.  Skipping test.");
             return;
         }
         let _guard = LOCK.lock();
