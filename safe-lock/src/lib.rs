@@ -104,8 +104,7 @@ pub struct SafeLockGuard<'x> {
 impl<'x> Drop for SafeLockGuard<'x> {
     fn drop(&mut self) {
         if !self.inner.locked.swap(false, Ordering::Release) {
-            eprintln!("lock released twice")
-            // unreachable!()
+            unreachable!()
         }
     }
 }
