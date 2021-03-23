@@ -160,7 +160,13 @@ fn verifier_error() {
     let mut stream = rustls::Stream::new(&mut session, &mut tcp_stream);
     let mut response = String::new();
     match stream.read_to_string(&mut response) {
-        Err(e) if e.to_string() == "invalid certificate: UnknownIssuer".to_string() => {}
+        Err(e) if &e.to_string() == "invalid certificate: UnknownIssuer" => {
+            // Prints "Custom { kind: InvalidData, error: WebPKIError(UnknownIssuer) }"
+            // println!("{:?}", e);
+            // rustls client tells the server about the error when it terminates
+            // the TSL connection.  The server's stream read/write fails with:
+            // "Custom { kind: InvalidData, error: AlertReceived(BadCertificate) }"
+        }
         other => panic!("{:?}", other),
     };
 }
