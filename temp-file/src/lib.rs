@@ -177,7 +177,7 @@ impl TempFile {
     /// Do not delete the file.
     ///
     /// This is useful when debugging a test.
-    pub fn leak(mut self) -> () {
+    pub fn leak(mut self) {
         self.path_buf.take();
     }
 

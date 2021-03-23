@@ -195,7 +195,7 @@ impl TempDir {
     /// Do not delete the directory or its contents.
     ///
     /// This is useful when debugging a test.
-    pub fn leak(mut self) -> () {
+    pub fn leak(mut self) {
         self.path_buf.take();
     }
 
