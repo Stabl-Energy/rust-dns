@@ -65,7 +65,7 @@ A simple `SafeLock` struct.
 ## Example
 
 Make some tests run sequentially so they don't interfere with each other:
-```rust
+```unknown
 use safe_lock::SafeLock;
 static LOCK: SafeLock = SafeLock::new();
 

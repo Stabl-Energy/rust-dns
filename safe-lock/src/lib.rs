@@ -65,7 +65,7 @@
 //! ## Example
 //!
 //! Make some tests run sequentially so they don't interfere with each other:
-//! ```ignore
+//! ```unknown
 //! use safe_lock::SafeLock;
 //! static LOCK: SafeLock = SafeLock::new();
 //!
@@ -140,7 +140,7 @@ fn test_unreachable() {
 /// # Example
 ///
 /// Make some tests run sequentially so they don't interfere with each other:
-/// ```ignore
+/// ```unknown
 /// use safe_lock::SafeLock;
 /// static LOCK: SafeLock = SafeLock::new();
 ///
