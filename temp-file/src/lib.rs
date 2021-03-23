@@ -72,6 +72,8 @@
 //! - Provide clear & concrete feedback
 //! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
+// TODO(mleonhard) Implement features requested of `tempfile` crate:
+//   https://github.com/Stebalien/tempfile/issues
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::path::{Path, PathBuf};
 
