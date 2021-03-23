@@ -1,6 +1,11 @@
+use crate::{TempDir, COUNTER};
+use core::sync::atomic::Ordering;
+use safe_lock::SafeLock;
 use std::io::ErrorKind;
 use std::path::Path;
-use temp_dir::TempDir;
+
+// The error tests require all tests to run single-threaded.
+static LOCK: SafeLock = SafeLock::new();
 
 fn expect_not_found(path: impl AsRef<Path>) {
     match std::fs::metadata(&path) {
@@ -12,6 +17,7 @@ fn expect_not_found(path: impl AsRef<Path>) {
 
 #[test]
 fn new() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     println!("{:?}", temp_dir);
     println!("{:?}", TempDir::new().unwrap());
@@ -22,7 +28,23 @@ fn new() {
 }
 
 #[test]
+fn new_error() {
+    let _guard = LOCK.lock();
+    let previous_counter_value = COUNTER.load(Ordering::SeqCst);
+    let temp_dir = TempDir::new().unwrap();
+    COUNTER.store(previous_counter_value, Ordering::SeqCst);
+    assert_eq!(
+        Err(format!(
+            "error creating directory {:?}: File exists (os error 17)",
+            temp_dir.path()
+        )),
+        TempDir::new()
+    );
+}
+
+#[test]
 fn with_prefix() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::with_prefix("prefix1").unwrap();
     let name = temp_dir.path().file_name().unwrap();
     assert!(
@@ -37,7 +59,23 @@ fn with_prefix() {
 }
 
 #[test]
+fn with_prefix_error() {
+    let _guard = LOCK.lock();
+    let previous_counter_value = COUNTER.load(Ordering::SeqCst);
+    let temp_dir = TempDir::with_prefix("prefix1").unwrap();
+    COUNTER.store(previous_counter_value, Ordering::SeqCst);
+    assert_eq!(
+        Err(format!(
+            "error creating directory {:?}: File exists (os error 17)",
+            temp_dir.path()
+        )),
+        TempDir::with_prefix("prefix1")
+    );
+}
+
+#[test]
 fn child() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     let file1_path = temp_dir.child("file1");
     assert!(
@@ -55,6 +93,7 @@ fn child() {
 
 #[test]
 fn test_drop() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_path_buf();
     let file1_path = temp_dir.child("file1");
@@ -67,6 +106,7 @@ fn test_drop() {
 
 #[test]
 fn drop_already_deleted() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     std::fs::remove_dir(temp_dir.path()).unwrap();
 }
@@ -80,6 +120,7 @@ fn drop_error_ignored() {
         println!("Running on Gitlab CI.  Skipping test.");
         return;
     }
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_path_buf();
     let file1_path = temp_dir.child("file1");
@@ -111,6 +152,7 @@ fn drop_error_panic() {
         println!("Running on Gitlab CI.  Skipping test.");
         return;
     }
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap().panic_on_cleanup_error();
     let dir_path = temp_dir.path().to_path_buf();
     let file1_path = temp_dir.child("file1");
@@ -149,6 +191,7 @@ fn drop_error_panic() {
 
 #[test]
 fn leak() {
+    let _guard = LOCK.lock();
     let temp_dir = TempDir::new().unwrap();
     let dir_path = temp_dir.path().to_path_buf();
     let file1_path = temp_dir.child("file1");

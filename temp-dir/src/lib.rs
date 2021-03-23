@@ -230,41 +230,4 @@ impl Drop for TempDir {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::{TempDir, COUNTER};
-    use core::sync::atomic::Ordering;
-    use safe_lock::SafeLock;
-
-    // These tests must run single-threaded.
-    static LOCK: SafeLock = SafeLock::new();
-
-    #[test]
-    fn new_error() {
-        let _guard = LOCK.lock();
-        let previous_counter_value = COUNTER.load(Ordering::SeqCst);
-        let temp_dir = TempDir::new().unwrap();
-        COUNTER.store(previous_counter_value, Ordering::SeqCst);
-        assert_eq!(
-            Err(format!(
-                "error creating directory {:?}: File exists (os error 17)",
-                temp_dir.path()
-            )),
-            TempDir::new()
-        );
-    }
-
-    #[test]
-    fn with_prefix_error() {
-        let _guard = LOCK.lock();
-        let previous_counter_value = COUNTER.load(Ordering::SeqCst);
-        let temp_dir = TempDir::with_prefix("prefix1").unwrap();
-        COUNTER.store(previous_counter_value, Ordering::SeqCst);
-        assert_eq!(
-            Err(format!(
-                "error creating directory {:?}: File exists (os error 17)",
-                temp_dir.path()
-            )),
-            TempDir::with_prefix("prefix1")
-        );
-    }
-}
+mod test;
