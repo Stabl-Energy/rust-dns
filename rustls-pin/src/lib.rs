@@ -11,6 +11,7 @@
 //! - Make a TLS connection to a server
 //! - Check that the server is using an allowed certificate
 //! - `forbid(unsafe_code)`
+//! - 100% test coverage
 //!
 //! ## Alternatives
 //! - [rustls#227 Implement support for certificate pinning](https://github.com/ctz/rustls/issues/227)
@@ -27,6 +28,10 @@
 //!     vec![server_cert1, server_cert2],
 //! ).unwrap();
 //! ```
+//!
+//! ## Changelog
+//! - v0.1.1 - Increase test coverage
+//! - v0.1.0 - Initial version
 //!
 //! ## Happy Contributors 🙂
 //! Fixing bugs and adding features is easy and fast.

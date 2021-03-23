@@ -1,5 +1,6 @@
-use rustls_pin::{arbitrary_dns_name, PinnedServerCertVerifier};
+use rustls_pin::{arbitrary_dns_name, connect_pinned, PinnedServerCertVerifier};
 use std::io::{Read, Write};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 
 // # Generate the key and certificate with:
@@ -66,20 +67,25 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
     base64::decode(s.split_ascii_whitespace().collect::<String>())
 }
 
-#[test]
-fn test() {
+fn localhost_cert() -> rustls::Certificate {
+    rustls::Certificate(base64_decode(LOCALHOST_CERT_DER_BASE64).unwrap())
+}
+
+fn othername_cert() -> rustls::Certificate {
+    rustls::Certificate(base64_decode(OTHERNAME_CERT_DER_BASE64).unwrap())
+}
+
+fn start_server() -> SocketAddr {
     // Start a server thread.
     let localhost_key = rustls::PrivateKey(base64_decode(LOCALHOST_KEY_DER_BASE64).unwrap());
-    let localhost_cert = rustls::Certificate(base64_decode(LOCALHOST_CERT_DER_BASE64).unwrap());
-    let othername_cert = rustls::Certificate(base64_decode(OTHERNAME_CERT_DER_BASE64).unwrap());
     let listener = std::net::TcpListener::bind(&("127.0.0.1", 0)).unwrap();
     let addr = listener.local_addr().unwrap();
     let mut server_config = rustls::ServerConfig::new(rustls::NoClientAuth::new());
     server_config
-        .set_single_cert(vec![localhost_cert.clone()], localhost_key)
+        .set_single_cert(vec![localhost_cert()], localhost_key)
         .unwrap();
     let server_config_arc = Arc::new(server_config);
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move || {
         let (mut tcp_stream, _addr) = listener.accept().unwrap();
         let mut tls_session = rustls::ServerSession::new(&server_config_arc);
         let mut tls_stream = rustls::Stream::new(&mut tls_session, &mut tcp_stream);
@@ -87,34 +93,74 @@ fn test() {
             eprintln!("WARN server write error: {:?}", e);
         }
     });
-    {
-        // Make a request to the server, accepting either cert.
-        let mut tcp_stream = std::net::TcpStream::connect(addr).unwrap();
-        let mut client_config = rustls::ClientConfig::new();
-        client_config.dangerous().set_certificate_verifier(Arc::new(
-            PinnedServerCertVerifier::new(vec![othername_cert.clone(), localhost_cert.clone()]),
-        ));
-        let mut session =
-            rustls::ClientSession::new(&Arc::new(client_config), arbitrary_dns_name().as_ref());
-        let mut stream = rustls::Stream::new(&mut session, &mut tcp_stream);
-        let mut response = String::new();
-        stream.read_to_string(&mut response).unwrap();
-        assert_eq!("response1", &response);
+    addr
+}
+
+#[test]
+fn connect_pinned_connect_failure() {
+    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0);
+    match connect_pinned(addr, vec![othername_cert(), localhost_cert()]) {
+        Ok(_) => panic!("expected error"),
+        Err(e) if e.kind() == std::io::ErrorKind::AddrNotAvailable => {}
+        Err(e) => panic!("unexpected err: {}", e),
     }
-    {
-        // Make a request to the server, accepting only `othername_cert`, expecting error.
-        let mut tcp_stream = std::net::TcpStream::connect(addr).unwrap();
-        let mut client_config = rustls::ClientConfig::new();
-        client_config.dangerous().set_certificate_verifier(Arc::new(
-            PinnedServerCertVerifier::new(vec![othername_cert.clone()]),
-        ));
-        let mut session =
-            rustls::ClientSession::new(&Arc::new(client_config), arbitrary_dns_name().as_ref());
-        let mut stream = rustls::Stream::new(&mut session, &mut tcp_stream);
-        let mut response = String::new();
-        match stream.read_to_string(&mut response) {
-            Err(e) if e.to_string() == "invalid certificate: UnknownIssuer".to_string() => {}
-            other => panic!("{:?}", other),
-        };
-    }
+}
+
+#[test]
+fn connect_pinned_success() {
+    let addr = start_server();
+    let mut stream = connect_pinned(addr, vec![othername_cert(), localhost_cert()]).unwrap();
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert_eq!("response1", &response);
+}
+
+#[test]
+fn connect_pinned_invalid_cert() {
+    let addr = start_server();
+    let mut stream = connect_pinned(addr, vec![othername_cert()]).unwrap();
+    let mut response = String::new();
+    match stream.read_to_string(&mut response) {
+        Err(e) if e.to_string() == "invalid certificate: UnknownIssuer".to_string() => {}
+        other => panic!("{:?}", other),
+    };
+}
+
+#[test]
+fn verifier_success() {
+    let addr = start_server();
+    let mut tcp_stream = std::net::TcpStream::connect(addr).unwrap();
+    let mut client_config = rustls::ClientConfig::new();
+    client_config
+        .dangerous()
+        .set_certificate_verifier(Arc::new(PinnedServerCertVerifier::new(vec![
+            othername_cert(),
+            localhost_cert(),
+        ])));
+    let mut session =
+        rustls::ClientSession::new(&Arc::new(client_config), arbitrary_dns_name().as_ref());
+    let mut stream = rustls::Stream::new(&mut session, &mut tcp_stream);
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    assert_eq!("response1", &response);
+}
+
+#[test]
+fn verifier_error() {
+    let addr = start_server();
+    let mut tcp_stream = std::net::TcpStream::connect(addr).unwrap();
+    let mut client_config = rustls::ClientConfig::new();
+    client_config
+        .dangerous()
+        .set_certificate_verifier(Arc::new(PinnedServerCertVerifier::new(vec![
+            othername_cert(),
+        ])));
+    let mut session =
+        rustls::ClientSession::new(&Arc::new(client_config), arbitrary_dns_name().as_ref());
+    let mut stream = rustls::Stream::new(&mut session, &mut tcp_stream);
+    let mut response = String::new();
+    match stream.read_to_string(&mut response) {
+        Err(e) if e.to_string() == "invalid certificate: UnknownIssuer".to_string() => {}
+        other => panic!("{:?}", other),
+    };
 }
