@@ -52,4 +52,29 @@ fn test() {
     assert_eq!("AnyRange(3..=5)", &format!("{:?}", range_inclusive));
     assert_eq!("AnyRange(..5)", &format!("{:?}", range_to));
     assert_eq!("AnyRange(..=5)", &format!("{:?}", range_to_inclusive));
+
+    assert_eq!(AnyRange::Range(0..2), AnyRange::Range(0..2));
+    assert!(AnyRange::Range(0..1) < AnyRange::Range(0..2));
+    assert!(AnyRange::Range(0..2) < AnyRange::Range(1..2));
+    assert_eq!(AnyRange::RangeFrom(0..), AnyRange::RangeFrom(0..));
+    assert!(AnyRange::RangeFrom(0..) < AnyRange::RangeFrom(1..));
+    assert_eq!(AnyRange::RangeFull::<u8>(..), AnyRange::RangeFull(..));
+    assert_eq!(
+        AnyRange::RangeInclusive(0..=2),
+        AnyRange::RangeInclusive(0..=2)
+    );
+    assert!(AnyRange::RangeInclusive(0..=1) < AnyRange::RangeInclusive(0..=2));
+    assert!(AnyRange::RangeInclusive(0..=2) < AnyRange::RangeInclusive(1..=2));
+    assert_eq!(AnyRange::RangeTo(..0), AnyRange::RangeTo(..0));
+    assert!(AnyRange::RangeTo(..0) < AnyRange::RangeTo(..1));
+    assert_eq!(
+        AnyRange::RangeToInclusive(..=0),
+        AnyRange::RangeToInclusive(..=0)
+    );
+    assert!(AnyRange::RangeToInclusive(..=0) < AnyRange::RangeToInclusive(..=1));
+    assert!(range < range_from);
+    assert!(range_from < range_full);
+    assert!(range_full < range_inclusive);
+    assert!(range_inclusive < range_to);
+    assert!(range_to < range_to_inclusive);
 }

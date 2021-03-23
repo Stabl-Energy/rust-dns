@@ -46,12 +46,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  any-range 0.1.2
+0/0        0/0          0/0    0/0     0/0      🔒  any-range 0.1.3
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.3 - Implement `Hash`, `PartialOrd`, `Ord`
 - v0.1.2 - Increase test coverage
 - v0.1.1 - Update docs
 - v0.1.0 - Initial version
