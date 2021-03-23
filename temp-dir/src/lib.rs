@@ -344,6 +344,12 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn drop_error_ignored() {
+        // On Gitlab's shared CI runners, the cleanup always succeeds and the
+        // test fails.  So we skip this test when it's running on Gitlab CI.
+        if std::env::current_dir().unwrap().starts_with("/builds/") {
+            println!("Running on Gitlab CI.  Skipping test.");
+            return;
+        }
         let _guard = LOCK.lock();
         let temp_dir = TempDir::new().unwrap();
         let dir_path = temp_dir.path().to_path_buf();
