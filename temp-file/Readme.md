@@ -14,6 +14,7 @@ Provides a `TempFile` struct.
 - Optional file contents
 - Depends only on `std`
 - `forbid(unsafe_code)`
+- 100% test coverage
 
 ## Limitations
 - Not security-hardened. See
@@ -67,12 +68,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.4
+0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.5
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.5 - Increase test coverage
 - v0.1.4 - Add
   [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)
   and
