@@ -47,17 +47,17 @@ Provides a `TempDir` struct.
 ```rust
 use temp_dir::TempDir;
 let d = TempDir::new().unwrap();
-// Prints "/tmp/t1a9b0".
+// Prints "/tmp/t1a9b-0".
 println!("{:?}", d.path());
 let f = d.child("file1");
-// Prints "/tmp/t1a9b0/file1".
+// Prints "/tmp/t1a9b-0/file1".
 println!("{:?}", f);
 std::fs::write(&f, b"abc").unwrap();
 assert_eq!(
     "abc",
     std::fs::read_to_string(&f).unwrap(),
 );
-// Prints "/tmp/t1a9b1".
+// Prints "/tmp/t1a9b-1".
 println!(
     "{:?}", TempDir::new().unwrap().path());
 ```
@@ -76,12 +76,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.9
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.10
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.10 - Implement `Eq`, `Ord`, `Hash`
 - v0.1.9 - Increase test coverage
 - v0.1.8 - Add [`leak`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.leak).
 - v0.1.7 - Update docs:
