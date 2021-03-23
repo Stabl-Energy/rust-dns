@@ -14,6 +14,7 @@ Provides a `TempDir` struct.
 - Optional name prefix
 - Depends only on `std`
 - `forbid(unsafe_code)`
+- 100% test coverage
 
 ## Limitations
 - Not security-hardened.
@@ -75,12 +76,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.8
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.9
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.9 - Increase test coverage
 - v0.1.8 - Add [`leak`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.leak).
 - v0.1.7 - Update docs:
   Warn about `std::fs::remove_dir_all` being unreliable on Windows.
