@@ -16,6 +16,7 @@
 //! - Const constructor
 //! - Depends only on `std`
 //! - `forbid(unsafe_code)`
+//! - 100% test coverage
 //!
 //! ## Limitations
 //! - Not a `Mutex<T>`.  Does not contain a value.
@@ -84,6 +85,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.3 - Increase test coverage
 //! - v0.1.2 - Use `Acquire` and `Release` ordering
 //! - v0.1.1 - Update docs
 //! - v0.1.0 - Initial version
@@ -105,6 +107,24 @@ impl<'x> Drop for SafeLockGuard<'x> {
     fn drop(&mut self) {
         if !self.inner.locked.swap(false, Ordering::Release) {
             unreachable!()
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_unreachable() {
+    let lock: SafeLock = Default::default();
+    let guard1 = lock.lock();
+    let guard2 = SafeLockGuard { inner: &lock };
+    drop(guard1);
+    match std::panic::catch_unwind(move || drop(guard2)) {
+        Ok(_) => panic!("expected panic"),
+        Err(any) => {
+            assert_eq!(
+                "internal error: entered unreachable code",
+                *any.downcast::<&'static str>().unwrap()
+            );
         }
     }
 }

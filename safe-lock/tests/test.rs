@@ -5,6 +5,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 static _STATIC_SAFE_LOCK: SafeLock = SafeLock::new();
 
 #[test]
+fn default() {
+    let lock: SafeLock = Default::default();
+    let _guard = lock.lock();
+}
+
+#[test]
 fn sequential() {
     let lock = SafeLock::new();
     {

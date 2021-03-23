@@ -16,6 +16,7 @@ A simple `SafeLock` struct.
 - Const constructor
 - Depends only on `std`
 - `forbid(unsafe_code)`
+- 100% test coverage
 
 ## Limitations
 - Not a `Mutex<T>`.  Does not contain a value.
@@ -101,6 +102,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
+- v0.1.3 - Increase test coverage
 - v0.1.2 - Use `Acquire` and `Release` ordering
 - v0.1.1 - Update docs
 - v0.1.0 - Initial version
