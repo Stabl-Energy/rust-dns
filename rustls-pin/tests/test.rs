@@ -98,10 +98,10 @@ fn start_server() -> SocketAddr {
 
 #[test]
 fn connect_pinned_connect_failure() {
-    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0);
+    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 1);
     match connect_pinned(addr, vec![othername_cert(), localhost_cert()]) {
         Ok(_) => panic!("expected error"),
-        Err(e) if e.kind() == std::io::ErrorKind::AddrNotAvailable => {}
+        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {}
         Err(e) => panic!("unexpected err: {}", e),
     }
 }
