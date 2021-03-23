@@ -1,4 +1,3 @@
-use core::sync::atomic::Ordering;
 use std::io::ErrorKind;
 use std::path::Path;
 use temp_dir::TempDir;

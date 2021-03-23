@@ -233,8 +233,6 @@ mod tests {
     use crate::{TempDir, COUNTER};
     use core::sync::atomic::Ordering;
     use safe_lock::SafeLock;
-    use std::io::ErrorKind;
-    use std::path::Path;
 
     // These tests must run single-threaded.
     static LOCK: SafeLock = SafeLock::new();
