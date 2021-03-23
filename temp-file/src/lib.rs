@@ -56,6 +56,10 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.4 - Add
+//!   [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)
+//!   and
+//!   [`panic_on_cleanup_error`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.panic_on_cleanup_error).
 //! - v0.1.3 - Update docs
 //! - v0.1.2 - Update example
 //! - v0.1.1 - Minor code cleanup, update docs
@@ -95,7 +99,8 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 /// ```
 #[derive(Clone, PartialOrd, PartialEq, Debug)]
 pub struct TempFile {
-    path_buf: PathBuf,
+    path_buf: Option<PathBuf>,
+    panic_on_delete_err: bool,
 }
 impl TempFile {
     /// Create a new empty file in a system temporary directory.
@@ -140,7 +145,10 @@ impl TempFile {
         open_opts
             .open(&path_buf)
             .map_err(|e| format!("error creating file {:?}: {}", &path_buf, e))?;
-        Ok(Self { path_buf })
+        Ok(Self {
+            path_buf: Some(path_buf),
+            panic_on_delete_err: false,
+        })
     }
 
     /// Write `contents` to the file.
@@ -148,20 +156,45 @@ impl TempFile {
     /// # Errors
     /// Returns `Err` when it fails to write all of `contents` to the file.
     pub fn with_contents(self, contents: &[u8]) -> Result<Self, String> {
-        std::fs::write(&self.path_buf, contents)
-            .map_err(|e| format!("error writing file {:?}: {}", &self.path_buf, e))?;
+        let path = self.path_buf.as_ref().unwrap();
+        std::fs::write(path, contents)
+            .map_err(|e| format!("error writing file {:?}: {}", path, e))?;
         Ok(self)
+    }
+
+    /// Make the struct panic on Drop if it hits an error while
+    /// removing the file.
+    #[must_use]
+    pub fn panic_on_cleanup_error(mut self) -> Self {
+        Self {
+            path_buf: self.path_buf.take(),
+            panic_on_delete_err: true,
+        }
+    }
+
+    /// Do not delete the file.
+    ///
+    /// This is useful when debugging a test.
+    pub fn leak(mut self) -> () {
+        self.path_buf.take();
     }
 
     /// The path to the file.
     #[must_use]
     pub fn path(&self) -> &Path {
-        &self.path_buf
+        self.path_buf.as_ref().unwrap()
     }
 }
 impl Drop for TempFile {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path_buf);
+        if let Some(path) = &self.path_buf {
+            let result = std::fs::remove_file(path);
+            if self.panic_on_delete_err {
+                if let Err(e) = result {
+                    panic!("error removing file {:?}: {}", path, e);
+                }
+            }
+        }
     }
 }
 
@@ -347,7 +380,7 @@ mod test {
     }
 
     #[test]
-    fn drop() {
+    fn test_drop() {
         let _guard = LOCK.lock();
         let path_copy;
         {
@@ -363,5 +396,64 @@ mod test {
         let _guard = LOCK.lock();
         let temp_file = TempFile::new().unwrap();
         std::fs::remove_file(temp_file.path()).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn drop_error_ignored() {
+        // On Gitlab's shared CI runners, the cleanup always succeeds and the
+        // test fails.  So we skip this test when it's running on Gitlab CI.
+        if std::env::current_dir().unwrap().starts_with("/builds/") {
+            println!("Running on Gitlab CI.  Skipping test.");
+            return;
+        }
+        let _guard = LOCK.lock();
+        let f = crate::empty();
+        let path = f.path().to_path_buf();
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        drop(f);
+        std::fs::metadata(&path).unwrap();
+        std::fs::remove_dir(&path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn drop_error_panic() {
+        // On Gitlab's shared CI runners, the cleanup always succeeds and the
+        // test fails.  So we skip this test when it's running on Gitlab CI.
+        if std::env::current_dir().unwrap().starts_with("/builds/") {
+            println!("Running on Gitlab CI.  Skipping test.");
+            return;
+        }
+        let _guard = LOCK.lock();
+        let f = crate::empty().panic_on_cleanup_error();
+        let path = f.path().to_path_buf();
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        let result = std::panic::catch_unwind(move || drop(f));
+        std::fs::metadata(&path).unwrap();
+        std::fs::remove_dir(&path).unwrap();
+        match result {
+            Ok(_) => panic!("expected panic"),
+            Err(any) => {
+                let e = any.downcast::<String>().unwrap();
+                assert!(
+                    e.starts_with(&format!("error removing file {:?}: ", path)),
+                    "unexpected error {:?}",
+                    e
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn leak() {
+        let _guard = LOCK.lock();
+        let f = crate::empty();
+        let path = f.path().to_path_buf();
+        f.leak();
+        std::fs::metadata(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
     }
 }

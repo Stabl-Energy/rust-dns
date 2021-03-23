@@ -67,12 +67,16 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.3
+0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.4
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.4 - Add
+  [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)
+  and
+  [`panic_on_cleanup_error`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.panic_on_cleanup_error).
 - v0.1.3 - Update docs
 - v0.1.2 - Update example
 - v0.1.1 - Minor code cleanup, update docs
