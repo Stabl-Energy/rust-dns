@@ -25,6 +25,7 @@ check_all() {
   SKIP_CARGO_GEIGER=
 
   time check_crate any-range
+  time check_crate permit
   time check_crate safe-lock
   time check_crate temp-dir
   time check_crate temp-file

@@ -2,6 +2,7 @@
 [workspace]
 members = [
     "any-range",
+    "permit",
     "rustls-pin",
     "safe-lock",
     "temp-dir",

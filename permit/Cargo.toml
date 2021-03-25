@@ -1,0 +1,15 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["concurrency", "asynchronous", "network-programming"]
+description = "A struct for cancelling operations."
+edition = "2018"
+keywords = ["cancel", "context", "ctx", "done", "shutdown"]
+license = "Apache-2.0"
+name = "permit"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
