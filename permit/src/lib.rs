@@ -230,6 +230,7 @@ impl Permit {
     /// been dropped.
     ///
     /// This includes direct subordinates and their subordinates, recursively.
+    #[must_use]
     pub fn has_subs(&self) -> bool {
         Arc::strong_count(&self.inner) != 1
     }
