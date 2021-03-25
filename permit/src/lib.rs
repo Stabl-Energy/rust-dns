@@ -62,17 +62,16 @@
 //!     });
 //! }
 //! wait_for_shutdown_signal();
-//! // Revoke all thread permits.
-//! top_permit.revoke();
-//! // Give the threads time to finish
-//! // and drop their permits.
-//! let _ = top_permit.try_wait_for(
+//! // Revoke all thread permits and wait for them to
+//! // finish an drop their permits.
+//! top_permit.revoke().try_wait_for(
 //!     core::time::Duration::from_secs(3));
 //! ```
 //!
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
 //!
 //! ## Happy Contributors 🙂
@@ -166,11 +165,9 @@ impl std::error::Error for DeadlineExceeded {}
 ///     });
 /// }
 /// wait_for_shutdown_signal();
-/// // Revoke all thread permits.
-/// top_permit.revoke();
-/// // Give the threads time to finish
-/// // and drop their permits.
-/// let _ = top_permit.try_wait_for(
+/// // Revoke all thread permits and wait for them to
+/// // finish an drop their permits.
+/// top_permit.revoke().try_wait_for(
 ///     core::time::Duration::from_secs(3));
 /// ```
 pub struct Permit {
@@ -222,8 +219,10 @@ impl Permit {
     }
 
     /// Revokes this permit and all subordinate permits.
-    pub fn revoke(&self) {
-        self.inner.revoke()
+    #[allow(clippy::must_use_candidate)]
+    pub fn revoke(&self) -> &Self {
+        self.inner.revoke();
+        self
     }
 
     /// Returns `true` if this permit has any subordinate permits that have not

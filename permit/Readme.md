@@ -60,11 +60,9 @@ for _ in 0..5 {
     });
 }
 wait_for_shutdown_signal();
-// Revoke all thread permits.
-top_permit.revoke();
-// Give the threads time to finish
-// and drop their permits.
-let _ = top_permit.try_wait_for(
+// Revoke all thread permits and wait for them to
+// finish an drop their permits.
+top_permit.revoke().try_wait_for(
     core::time::Duration::from_secs(3));
 ```
 
@@ -82,12 +80,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.0
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.1
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.1 - Make `revoke` return `&Self`
 - v0.1.0 - Initial version
 
 ## Happy Contributors 🙂
