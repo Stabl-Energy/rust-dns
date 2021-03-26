@@ -3,15 +3,19 @@ use core::ops::Range;
 use permit::{DeadlineExceeded, Permit};
 use std::time::{Duration, Instant};
 
-pub fn expect_elapsed(before: Instant, range_ms: Range<u64>) {
+pub fn expect_elapsed(before: Instant, range_ms: Range<u64>) -> Result<(), String> {
     if range_ms.is_empty() {
-        panic!("invalid range {:?}", range_ms)
+        return Err(format!("invalid range {:?}", range_ms));
     }
     let elapsed = before.elapsed();
     let duration_range = Duration::from_millis(range_ms.start)..Duration::from_millis(range_ms.end);
     if !duration_range.contains(&elapsed) {
-        panic!("{:?} elapsed, out of range {:?}", elapsed, duration_range);
+        return Err(format!(
+            "{:?} elapsed, out of range {:?}",
+            elapsed, duration_range
+        ));
     }
+    Ok(())
 }
 
 #[test]
@@ -165,7 +169,7 @@ fn has_subs() {
     }
     assert!(top_permit.has_subs());
     top_permit.wait();
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
     assert!(!top_permit.has_subs());
 }
 
@@ -181,7 +185,7 @@ fn wait() {
         });
     }
     top_permit.wait();
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
@@ -196,7 +200,7 @@ fn try_wait_for() {
         });
     }
     top_permit.try_wait_for(Duration::from_millis(100)).unwrap();
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
@@ -213,7 +217,7 @@ fn try_wait_until() {
     top_permit
         .try_wait_until(before + Duration::from_millis(100))
         .unwrap();
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
@@ -231,7 +235,7 @@ fn try_wait_for_deadline_exceeded() {
         Err(DeadlineExceeded),
         top_permit.try_wait_for(Duration::from_millis(50))
     );
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
@@ -249,7 +253,7 @@ fn try_wait_until_deadline_exceeded() {
         Err(DeadlineExceeded),
         top_permit.try_wait_until(before + Duration::from_millis(50))
     );
-    expect_elapsed(before, 50..100);
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
