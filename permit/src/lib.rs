@@ -18,6 +18,7 @@
 //!   Revoking a permit also revokes its subordinates, recursively.
 //! - Drop a permit to revoke its subordinates, recursively.
 //! - Wait for all subordinate permits to drop.
+//! - Implements `Future`.  You can `await` a permit and return when it is revoked.
 //! - Similar to Golang's [`context`](https://golang.org/pkg/context/)
 //! - Depends only on `std`.
 //! - `forbid(unsafe_code)`
@@ -71,6 +72,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.2 - Implement `Future`
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
 //!
@@ -81,55 +83,165 @@
 //! - Provide clear & concrete feedback
 //! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
+use core::fmt::Debug;
+use std::collections::HashSet;
+use std::future::Future;
+use std::hash::{Hash, Hasher};
+use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, Weak};
+use std::task::{Context, Poll, Waker};
 use std::time::{Duration, Instant};
 
+// This code was beautiful before implementing `Future`:
+// https://gitlab.com/leonhard-llc/ops/-/blob/26adc04aec12ac083fda358f176f0ef5130cda60/permit/src/lib.rs
+//
+// How can we simplify it?
+
+struct ArcNode(Arc<Node>);
+impl PartialEq for ArcNode {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::as_ptr(&self.0).eq(&Arc::as_ptr(&other.0))
+    }
+}
+impl Eq for ArcNode {}
+impl Hash for ArcNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.0).hash(state)
+    }
+}
+// impl Debug for ArcNode {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+//         write!(f, "ArcNode({:?})", Arc::as_ptr(&self.0))
+//     }
+// }
+
+// #[derive(Debug)]
 struct Inner {
-    superior: Option<Arc<Inner>>,
-    revoked: AtomicBool,
+    revoked: bool,
+    wakers: Vec<Box<Waker>>,
+    subs: HashSet<ArcNode>,
 }
 impl Inner {
     #[must_use]
-    pub fn new() -> Arc<Self> {
-        Arc::new(Inner {
-            superior: None,
-            revoked: AtomicBool::new(false),
-        })
+    pub fn new(revoked: bool) -> Self {
+        Inner {
+            revoked,
+            wakers: Vec::new(),
+            subs: HashSet::new(),
+        }
+    }
+
+    pub fn add_sub(&mut self, node: &Arc<Node>) {
+        if !self.revoked {
+            self.subs.insert(ArcNode(Arc::clone(node)));
+        }
+    }
+
+    pub fn remove_sub(&mut self, node: &Arc<Node>) {
+        let arc_node = ArcNode(Arc::clone(node));
+        self.subs.remove(&arc_node);
+    }
+
+    #[must_use]
+    pub fn has_subs(&self) -> bool {
+        !self.subs.is_empty()
+    }
+
+    pub fn add_waker(&mut self, waker: Box<Waker>) {
+        if self.revoked {
+            waker.wake();
+        } else {
+            self.wakers.push(waker);
+        }
+    }
+
+    pub fn revoke(&mut self) -> (Vec<Box<Waker>>, HashSet<ArcNode>) {
+        self.revoked = true;
+        (
+            core::mem::replace(&mut self.wakers, Vec::new()),
+            core::mem::replace(&mut self.subs, HashSet::new()),
+        )
+    }
+}
+
+// #[derive(Debug)]
+struct Node {
+    superior: Weak<Node>,
+    atomic_revoked: AtomicBool,
+    inner: Mutex<Inner>,
+}
+impl Node {
+    #[must_use]
+    pub fn new(revoked: bool, superior: Weak<Self>) -> Self {
+        Node {
+            superior,
+            atomic_revoked: AtomicBool::new(revoked),
+            inner: Mutex::new(Inner::new(revoked)),
+        }
+    }
+
+    #[must_use]
+    pub fn new_apex() -> Self {
+        Self::new(false, Weak::new())
     }
 
     #[must_use]
     pub fn new_sub(self: &Arc<Self>) -> Arc<Self> {
-        Arc::new(Self {
-            superior: Some(self.clone()),
-            revoked: AtomicBool::new(self.is_revoked()),
-        })
+        let node = Arc::new(Self::new(self.is_revoked(), Arc::downgrade(self)));
+        self.inner.lock().unwrap().add_sub(&node);
+        node
+    }
+
+    #[must_use]
+    pub fn new_clone(self: &Arc<Self>) -> Arc<Self> {
+        let node = Arc::new(Self::new(self.is_revoked(), Weak::clone(&self.superior)));
+        if let Some(superior) = self.superior.upgrade() {
+            superior.add_sub(&node);
+        }
+        node
+    }
+
+    pub fn add_sub(self: &Arc<Self>, node: &Arc<Node>) {
+        self.inner.lock().unwrap().add_sub(node)
+    }
+
+    fn remove_sub(&self, node: &Arc<Node>) {
+        self.inner.lock().unwrap().remove_sub(node);
+    }
+
+    #[must_use]
+    pub fn has_subs(&self) -> bool {
+        self.inner.lock().unwrap().has_subs()
     }
 
     #[must_use]
     pub fn is_revoked(&self) -> bool {
-        if self.revoked.load(std::sync::atomic::Ordering::Relaxed) {
-            return true;
+        self.atomic_revoked
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn add_waker(self: &Arc<Self>, waker: Box<Waker>) {
+        self.inner.lock().unwrap().add_waker(waker);
+    }
+
+    fn revoke(self: &Arc<Self>) {
+        self.atomic_revoked
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        let (wakers, subs) = self.inner.lock().unwrap().revoke();
+        for waker in wakers {
+            waker.wake();
         }
-        #[allow(clippy::option_if_let_else)]
-        if let Some(inner) = &self.superior {
-            inner.is_revoked()
-        } else {
-            false
+        for sub in subs {
+            sub.0.revoke();
         }
     }
 
-    pub fn revoke(&self) {
-        self.revoked
-            .store(true, std::sync::atomic::Ordering::Relaxed)
-    }
-}
-impl Clone for Inner {
-    fn clone(&self) -> Self {
-        Inner {
-            superior: self.superior.clone(),
-            revoked: AtomicBool::new(self.is_revoked()),
+    pub fn revoke_and_remove_from_superior(self: &Arc<Self>) {
+        if let Some(superior) = self.superior.upgrade() {
+            superior.remove_sub(self);
         }
+        self.revoke();
     }
 }
 
@@ -171,7 +283,7 @@ impl std::error::Error for DeadlineExceeded {}
 ///     core::time::Duration::from_secs(3));
 /// ```
 pub struct Permit {
-    inner: Arc<Inner>,
+    node: Arc<Node>,
 }
 impl Permit {
     /// Makes a new permit.
@@ -183,7 +295,7 @@ impl Permit {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            inner: Inner::new(),
+            node: Arc::new(Node::new_apex()),
         }
     }
 
@@ -196,7 +308,7 @@ impl Permit {
     #[must_use]
     pub fn new_sub(&self) -> Self {
         Self {
-            inner: self.inner.new_sub(),
+            node: self.node.new_sub(),
         }
     }
 
@@ -204,14 +316,14 @@ impl Permit {
     /// on this permit or any of its superiors.
     #[must_use]
     pub fn is_revoked(&self) -> bool {
-        self.inner.is_revoked()
+        self.node.is_revoked()
     }
 
     /// Returns `Some(())` if [`revoke()`](#method.revoke) has not been called
     /// on this permit or any of its superiors.
     #[must_use]
     pub fn ok(&self) -> Option<()> {
-        if self.inner.is_revoked() {
+        if self.node.is_revoked() {
             None
         } else {
             Some(())
@@ -221,7 +333,7 @@ impl Permit {
     /// Revokes this permit and all subordinate permits.
     #[allow(clippy::must_use_candidate)]
     pub fn revoke(&self) -> &Self {
-        self.inner.revoke();
+        self.node.revoke_and_remove_from_superior();
         self
     }
 
@@ -231,7 +343,7 @@ impl Permit {
     /// This includes direct subordinates and their subordinates, recursively.
     #[must_use]
     pub fn has_subs(&self) -> bool {
-        Arc::strong_count(&self.inner) != 1
+        self.node.has_subs()
     }
 
     /// Wait indefinitely for all subordinate permits to drop.
@@ -274,18 +386,30 @@ impl Permit {
 }
 impl Drop for Permit {
     fn drop(&mut self) {
-        self.inner.revoke()
+        self.node.revoke_and_remove_from_superior()
     }
 }
 impl Clone for Permit {
     fn clone(&self) -> Self {
         Self {
-            inner: Arc::new(self.inner.as_ref().clone()),
+            node: self.node.new_clone(),
         }
     }
 }
 impl Default for Permit {
     fn default() -> Self {
         Self::new()
+    }
+}
+impl Future for Permit {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.is_revoked() {
+            Poll::Ready(())
+        } else {
+            self.node.add_waker(Box::new(cx.waker().clone()));
+            Poll::Pending
+        }
     }
 }

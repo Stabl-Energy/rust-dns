@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 use core::ops::Range;
 use permit::{DeadlineExceeded, Permit};
+use safina_async_test::async_test;
 use std::time::{Duration, Instant};
 
 pub fn expect_elapsed(before: Instant, range_ms: Range<u64>) -> Result<(), String> {
@@ -160,6 +161,12 @@ fn sync_and_send() {
 fn has_subs() {
     let before = Instant::now();
     let top_permit = permit::Permit::new();
+    assert!(!top_permit.has_subs());
+    let sub1 = top_permit.new_sub();
+    assert!(top_permit.has_subs());
+    drop(sub1);
+    assert!(!top_permit.has_subs());
+
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
@@ -259,4 +266,60 @@ fn try_wait_until_deadline_exceeded() {
 #[test]
 fn deadline_exceeded() {
     assert_eq!("DeadlineExceeded", &format!("{}", DeadlineExceeded {}));
+}
+
+#[test]
+fn await_revoked_returns_immediately() {
+    let before = Instant::now();
+    let permit = permit::Permit::new();
+    permit.revoke();
+    safina::block_on(async move { permit.await });
+    expect_elapsed(before, 0..10).unwrap();
+}
+
+#[test]
+fn await_timeout() {
+    safina::start_timer_thread();
+    let permit = permit::Permit::new();
+    let sub = permit.new_sub();
+    safina::block_on(async move {
+        safina::with_timeout(sub, Duration::from_millis(50))
+            .await
+            .unwrap_err()
+    });
+}
+
+#[test]
+fn await_returns_when_revoked() {
+    let before = Instant::now();
+    let permit = permit::Permit::new();
+    let sub = permit.new_sub();
+    std::thread::spawn(move || {
+        std::thread::sleep(core::time::Duration::from_millis(50));
+        drop(permit);
+    });
+    safina::block_on(async move { sub.await });
+    expect_elapsed(before, 50..100).unwrap();
+}
+
+#[async_test]
+async fn await_many() {
+    let before = Instant::now();
+    let top_permit = permit::Permit::new();
+    let mut promises = Vec::new();
+    for _ in 0..100000 {
+        let permit = top_permit.new_sub();
+        let promise = safina::Promise::new();
+        promises.push(promise.clone());
+        safina::spawn(async move {
+            permit.await;
+            promise.set(());
+        });
+    }
+    safina::sleep_for(Duration::from_millis(50)).await;
+    top_permit.revoke();
+    for promise in promises {
+        promise.await;
+    }
+    expect_elapsed(before, 0..10_000).unwrap();
 }

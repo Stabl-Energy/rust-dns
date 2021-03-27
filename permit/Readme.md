@@ -18,6 +18,7 @@ is a struct for cancelling operations.
   Revoking a permit also revokes its subordinates, recursively.
 - Drop a permit to revoke its subordinates, recursively.
 - Wait for all subordinate permits to drop.
+- Implements `Future`.  You can `await` a permit and return when it is revoked.
 - Similar to Golang's [`context`](https://golang.org/pkg/context/)
 - Depends only on `std`.
 - `forbid(unsafe_code)`
@@ -80,12 +81,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.2
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.2 - Implement `Future`
 - v0.1.1 - Make `revoke` return `&Self`
 - v0.1.0 - Initial version
 
