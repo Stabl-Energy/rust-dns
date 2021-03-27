@@ -119,7 +119,7 @@ impl Hash for ArcNode {
 // #[derive(Debug)]
 struct Inner {
     revoked: bool,
-    wakers: Vec<Box<Waker>>,
+    wakers: Vec<Waker>,
     subs: HashSet<ArcNode>,
 }
 impl Inner {
@@ -152,11 +152,11 @@ impl Inner {
         if self.revoked {
             waker.wake();
         } else {
-            self.wakers.push(waker);
+            self.wakers.push(*waker);
         }
     }
 
-    pub fn revoke(&mut self) -> (Vec<Box<Waker>>, HashSet<ArcNode>) {
+    pub fn revoke(&mut self) -> (Vec<Waker>, HashSet<ArcNode>) {
         self.revoked = true;
         (
             core::mem::replace(&mut self.wakers, Vec::new()),
