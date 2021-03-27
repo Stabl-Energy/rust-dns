@@ -170,6 +170,7 @@ where
 /// An arbitrary `DNSName` struct, for passing to [`rustls::ClientSession::new`].
 /// `PinnedServerCertVerifier` receives the value and ignores it.
 #[must_use]
+#[allow(clippy::missing_panics_doc)]
 pub fn arbitrary_dns_name() -> webpki::DNSName {
     webpki::DNSNameRef::try_from_ascii_str("arbitrary1")
         .unwrap()
