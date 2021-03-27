@@ -204,12 +204,14 @@ impl TempDir {
 
     /// The path to the directory.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn path(&self) -> &Path {
         self.path_buf.as_ref().unwrap()
     }
 
     /// The path to `name` under the directory.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn child(&self, name: impl AsRef<str>) -> PathBuf {
         let mut result = self.path_buf.as_ref().unwrap().clone();
         result.push(name.as_ref());

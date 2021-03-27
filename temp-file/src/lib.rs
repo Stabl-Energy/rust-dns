@@ -159,6 +159,7 @@ impl TempFile {
     ///
     /// # Errors
     /// Returns `Err` when it fails to write all of `contents` to the file.
+    #[allow(clippy::missing_panics_doc)]
     pub fn with_contents(self, contents: &[u8]) -> Result<Self, String> {
         let path = self.path_buf.as_ref().unwrap();
         std::fs::write(path, contents)
@@ -185,6 +186,7 @@ impl TempFile {
 
     /// The path to the file.
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn path(&self) -> &Path {
         self.path_buf.as_ref().unwrap()
     }
@@ -204,6 +206,7 @@ impl Drop for TempFile {
 
 /// Create a new empty file in a system temporary directory.
 ///
+/// # Panics
 /// Panics if it cannot create the file.
 #[must_use]
 pub fn empty() -> TempFile {
@@ -213,6 +216,7 @@ pub fn empty() -> TempFile {
 /// Create a new  file in a system temporary directory
 /// and writes `contents` to it.
 ///
+/// # Panics
 /// Panics if it fails to create the file or fails to write all of `contents`.
 #[must_use]
 pub fn with_contents(contents: &[u8]) -> TempFile {
