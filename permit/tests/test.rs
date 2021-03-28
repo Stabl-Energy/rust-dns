@@ -323,3 +323,24 @@ async fn await_many() {
     }
     expect_elapsed(before, 0..10_000).unwrap();
 }
+
+#[async_test]
+async fn await_loop() {
+    let before = Instant::now();
+    let top_permit = permit::Permit::new();
+    let permit = top_permit.new_sub();
+    for _ in 0..7 {
+        let sub = permit.new_sub();
+        println!("loop.await");
+        safina::with_timeout(sub, Duration::from_micros(1))
+            .await
+            .unwrap_err();
+        println!("loop.done");
+    }
+    expect_elapsed(before, 0..10_000).unwrap();
+    println!("dropping permit");
+    drop(permit);
+    println!("dropping top_permit");
+    drop(top_permit);
+    println!("await_loop done");
+}
