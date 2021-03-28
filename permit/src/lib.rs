@@ -72,7 +72,8 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
-//! - v0.1.3 - Don't wake stale [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
+//! - v0.1.3 - Don't keep or wake stale
+//!   [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
 //! - v0.1.2 - Implement `Future`
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
@@ -120,7 +121,7 @@ impl Hash for ArcNode {
 // #[derive(Debug)]
 struct Inner {
     revoked: bool,
-    wakers: Vec<Waker>,
+    opt_waker: Option<Waker>,
     subs: HashSet<ArcNode>,
 }
 impl Inner {
@@ -128,7 +129,7 @@ impl Inner {
     pub fn new(revoked: bool) -> Self {
         Inner {
             revoked,
-            wakers: Vec::new(),
+            opt_waker: None,
             subs: HashSet::new(),
         }
     }
@@ -149,18 +150,18 @@ impl Inner {
         !self.subs.is_empty()
     }
 
-    pub fn add_waker(&mut self, waker: Box<Waker>) {
+    pub fn set_waker(&mut self, waker: Box<Waker>) {
         if self.revoked {
             waker.wake();
         } else {
-            self.wakers.push(*waker);
+            self.opt_waker = Some(*waker);
         }
     }
 
-    pub fn revoke(&mut self) -> (Vec<Waker>, HashSet<ArcNode>) {
+    pub fn revoke(&mut self) -> (Option<Waker>, HashSet<ArcNode>) {
         self.revoked = true;
         (
-            core::mem::replace(&mut self.wakers, Vec::new()),
+            self.opt_waker.take(),
             core::mem::replace(&mut self.subs, HashSet::new()),
         )
     }
@@ -222,16 +223,16 @@ impl Node {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
-    pub fn add_waker(self: &Arc<Self>, waker: Box<Waker>) {
-        self.inner.lock().unwrap().add_waker(waker);
+    pub fn set_waker(self: &Arc<Self>, waker: Box<Waker>) {
+        self.inner.lock().unwrap().set_waker(waker);
     }
 
     fn revoke(self: &Arc<Self>, wake: bool) {
         self.atomic_revoked
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        let (wakers, subs) = self.inner.lock().unwrap().revoke();
+        let (opt_waker, subs) = self.inner.lock().unwrap().revoke();
         if wake {
-            for waker in wakers {
+            if let Some(waker) = opt_waker {
                 waker.wake();
             }
         }
@@ -411,7 +412,7 @@ impl Future for Permit {
         if self.is_revoked() {
             Poll::Ready(())
         } else {
-            self.node.add_waker(Box::new(cx.waker().clone()));
+            self.node.set_waker(Box::new(cx.waker().clone()));
             Poll::Pending
         }
     }

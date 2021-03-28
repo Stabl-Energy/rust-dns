@@ -81,12 +81,14 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.2
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.3
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.3 - Don't keep or wake stale
+  [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
 - v0.1.2 - Implement `Future`
 - v0.1.1 - Make `revoke` return `&Self`
 - v0.1.0 - Initial version
