@@ -8,10 +8,10 @@ license = "Apache-2.0"
 name = "permit"
 readme = "Readme.md"
 repository = "https://gitlab.com/leonhard-llc/ops"
-version = "0.1.2"
+version = "0.1.3"
 
 [dependencies]
 
 [dev-dependencies]
-safina = "^0.1.9"
-safina-async-test = "^0.1.9"
+safina = { path = "../../safina-rs/safina", version = "^0.1.9" }
+safina-async-test = { path = "../../safina-rs/safina-async-test", version = "^0.1.9" }

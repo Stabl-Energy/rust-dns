@@ -72,6 +72,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.3 - Don't wake stale [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
 //! - v0.1.2 - Implement `Future`
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
@@ -225,15 +226,17 @@ impl Node {
         self.inner.lock().unwrap().add_waker(waker);
     }
 
-    fn revoke(self: &Arc<Self>) {
+    fn revoke(self: &Arc<Self>, wake: bool) {
         self.atomic_revoked
             .store(true, std::sync::atomic::Ordering::Relaxed);
         let (wakers, subs) = self.inner.lock().unwrap().revoke();
-        for waker in wakers {
-            waker.wake();
+        if wake {
+            for waker in wakers {
+                waker.wake();
+            }
         }
         for sub in subs {
-            sub.0.revoke();
+            sub.0.revoke(true);
         }
     }
 
@@ -241,7 +244,7 @@ impl Node {
         if let Some(superior) = self.superior.upgrade() {
             superior.remove_sub(self);
         }
-        self.revoke();
+        self.revoke(false);
     }
 }
 
