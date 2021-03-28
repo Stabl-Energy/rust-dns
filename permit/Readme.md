@@ -87,8 +87,10 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
-- v0.1.3 - Don't keep or wake stale
-  [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
+- v0.1.3
+  - Don't keep or wake stale
+    [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
+  - Eliminate race that causes unnecessary wake.
 - v0.1.2 - Implement `Future`
 - v0.1.1 - Make `revoke` return `&Self`
 - v0.1.0 - Initial version

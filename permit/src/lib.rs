@@ -72,8 +72,10 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
-//! - v0.1.3 - Don't keep or wake stale
-//!   [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
+//! - v0.1.3
+//!   - Don't keep or wake stale
+//!     [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
+//!   - Eliminate race that causes unnecessary wake.
 //! - v0.1.2 - Implement `Future`
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
@@ -150,11 +152,12 @@ impl Inner {
         !self.subs.is_empty()
     }
 
-    pub fn set_waker(&mut self, waker: Box<Waker>) {
+    pub fn poll(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         if self.revoked {
-            waker.wake();
+            Poll::Ready(())
         } else {
-            self.opt_waker = Some(*waker);
+            self.opt_waker = Some(cx.waker().clone());
+            Poll::Pending
         }
     }
 
@@ -223,8 +226,8 @@ impl Node {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
-    pub fn set_waker(self: &Arc<Self>, waker: Box<Waker>) {
-        self.inner.lock().unwrap().set_waker(waker);
+    pub fn poll(self: &Arc<Self>, cx: &mut Context<'_>) -> Poll<()> {
+        self.inner.lock().unwrap().poll(cx)
     }
 
     fn revoke(self: &Arc<Self>, wake: bool) {
@@ -409,11 +412,6 @@ impl Future for Permit {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.is_revoked() {
-            Poll::Ready(())
-        } else {
-            self.node.set_waker(Box::new(cx.waker().clone()));
-            Poll::Pending
-        }
+        self.node.poll(cx)
     }
 }
