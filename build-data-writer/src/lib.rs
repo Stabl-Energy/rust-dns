@@ -165,7 +165,7 @@ pub fn get_git_branch() -> Result<String, String> {
 /// # Errors
 /// Returns an error if it fails to execute the `git` command.
 pub fn is_git_dirty() -> Result<bool, String> {
-    Ok(!exec("git", &["branch", "--show-current"])?.is_empty())
+    Ok(!exec("git", &["status", "-s"])?.is_empty())
 }
 
 /// Gets the version of the Rust compiler used to build the build script.
