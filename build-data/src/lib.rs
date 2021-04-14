@@ -107,6 +107,10 @@
 //! ## Changelog
 //! - v0.1.0 - Initial version
 //!
+//! ## To Do
+//! - Accept only `&'static str` and remove dependencyon `alloc`.
+//! - See if we can make `new` into a `const fn`.
+//!
 //! ## Happy Contributors 🙂
 //! Fixing bugs and adding features is easy and fast.
 //! Send us a pull request and we intend to:
