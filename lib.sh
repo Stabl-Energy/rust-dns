@@ -52,6 +52,7 @@ cargo_check_build_test() {
   set -x
   time $CARGO_CMD check --verbose
   time $CARGO_CMD build --verbose
+  # TODO(mleonhard) Use '-- --skip test_name'
   time $CARGO_CMD test --verbose
 }
 

@@ -1,0 +1,18 @@
+[package]
+publish = false
+description = "Integration test for `build-data` crate"
+edition = "2018"
+license = "Apache-2.0"
+name = "build-data-test"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
+assert_cmd = "1"
+build-data = { version = "0", path = "../build-data" }
+chrono = { version = "^0.4.19", features = ["alloc"] }
+spectral = "^0.6.0"
+
+[build-dependencies]
+build-data-writer = { version = "0", path = "../build-data-writer" }

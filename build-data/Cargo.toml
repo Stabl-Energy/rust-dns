@@ -1,0 +1,16 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["development-tools::build-utils"]
+description = "Include build data in your program: date, rustc version, git commit & branch, etc."
+edition = "2018"
+keywords = ["build", "info", "data", "commit", "branch"]
+license = "Apache-2.0"
+name = "build-data"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]
+build-data-writer = { version = "0", path = "../build-data-writer" }
