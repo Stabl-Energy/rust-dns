@@ -246,7 +246,10 @@ fn test_write() {
     let expected_time =
         chrono::TimeZone::timestamp(&chrono::Utc, parsed_file.time_seconds as i64, 0).to_rfc3339();
 
-    assert_eq!(exec("git", "branch --show-current"), parsed_file.git_branch);
+    assert_eq!(
+        exec("git", "rev-parse --abbrev-ref=loose HEAD"),
+        parsed_file.git_branch
+    );
     assert_eq!(exec("git", "rev-parse HEAD"), parsed_file.git_commit);
     assert_eq!(!exec("git", "status -s").is_empty(), parsed_file.git_dirty);
     assert_eq!(exec("hostname", ""), parsed_file.hostname);

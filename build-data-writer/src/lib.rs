@@ -157,7 +157,7 @@ pub fn get_git_commit() -> Result<String, String> {
 /// # Errors
 /// Returns an error if it fails to execute the `git` command.
 pub fn get_git_branch() -> Result<String, String> {
-    exec("git", &["branch", "--show-current"])
+    exec("git", &["rev-parse", "--abbrev-ref=loose", "HEAD"])
 }
 
 /// Returns `true` if the source directory contains uncommitted changes.

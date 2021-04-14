@@ -46,7 +46,10 @@ fn test() {
     let before = after - 4 * 60 * 60;
     let expected_time =
         chrono::TimeZone::timestamp(&chrono::Utc, bd.time_seconds as i64, 0).to_rfc3339();
-    assert_eq!(Some(exec("git", "branch --show-current")), bd.git_branch);
+    assert_eq!(
+        Some(exec("git", "rev-parse --abbrev-ref=loose HEAD")),
+        bd.git_branch
+    );
     assert_eq!(Some(exec("git", "rev-parse HEAD")), bd.git_commit);
     assert_eq!(Some(!exec("git", "status -s").is_empty()), bd.git_dirty);
     assert_eq!(Some(exec("hostname", "")), bd.hostname);
