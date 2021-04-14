@@ -43,7 +43,7 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  build-data-writer 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  build-data-writer 0.1.2
 1/1        44/90        2/2    0/0     0/0      ☢️  └── chrono 0.4.19
 0/19       10/311       0/0    0/0     5/27     ☢️      ├── libc 0.2.91
 0/0        0/0          0/0    0/0     0/0      ❓      ├── num-integer 0.1.44
@@ -58,6 +58,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
+- v0.1.2 - Support older versions of git when getting branch name.
 - v0.1.1 - Initial version
 
 ## Happy Contributors 🙂

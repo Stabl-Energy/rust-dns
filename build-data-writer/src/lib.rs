@@ -32,6 +32,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.2 - Support older versions of git when getting branch name.
 //! - v0.1.1 - Initial version
 //!
 //! ## Happy Contributors 🙂
