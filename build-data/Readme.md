@@ -80,7 +80,7 @@ fn main() {
     let bd = build_data::BuildData::new(include_str!(
         concat!(env!("OUT_DIR"), "/build-data.txt")
     )).unwrap();
-    // Built 2021-04-13T08:17:32+00:00 branch=release
+    // Built 2021-04-14T06:25:59+00:00 branch=release
     // commit=a5547bfb1edb9712588f0f85d3e2c8ba618ac51f
     // host=builder2
     // rustc 1.53.0-nightly (07e0e2ec2 2021-03-24)
