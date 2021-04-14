@@ -77,6 +77,12 @@
 //! - v0.1.1 - Increase test coverage
 //! - v0.1.0 - Initial version
 //!
+//! # TO DO
+//! - Support certificates that [`webpki` crate rejects](https://github.com/ctz/rustls/issues/127).
+//!   The code is already
+//!   [written](https://github.com/paritytech/x509-signature/issues/4#issuecomment-691729509).
+//!   The tests may be challening to write.
+//!
 //! ## Happy Contributors 🙂
 //! Fixing bugs and adding features is easy and fast.
 //! Send us a pull request and we intend to:
