@@ -17,13 +17,19 @@
 //! - Does all of its work in your
 //!   [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html).
 //! - No macros
-//! - Depends only on `core::alloc`
+//! - Depends only on `core::alloc` at runtime.
+//! - Light build dependencies
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
 //!
 //! ## Alternatives
+//! - [`vergen`](https://crates.io/crates/vergen)
+//!   - Mature & very popular
+//!   - Good API, needs only `env!` to retrieve values
+//!   - Excellent test coverage
+//!   - Heavy build dependencies
 //! - [`build-info`](https://crates.io/crates/build-info)
-//!   - Mature & popular
+//!   - Mature
 //!   - Confusing API
 //!   - Uses procedural macros
 //!
@@ -105,6 +111,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.1 - Update docs.
 //! - v0.1.0 - Initial version
 //!
 //! ## To Do
