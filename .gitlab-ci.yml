@@ -31,5 +31,6 @@ rust-stable:
     - mv "$CARGO_TARGET_DIR"/release/cargo-geiger "$CARGO_HOME"/bin/
     - cargo fmt --version || rustup component add rustfmt
     - cargo clippy --version || rustup component add clippy
+    - git --version
     - ./check-all.sh
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
