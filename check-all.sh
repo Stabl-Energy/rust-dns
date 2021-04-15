@@ -39,7 +39,6 @@ check_all() {
 
   time check_crate any-range
   time check_crate build-data
-  time check_crate build-data-writer
   time check_crate_sans_publish build-data-test
   time check_crate permit
   time check_crate_sans_geiger rustls-pin
