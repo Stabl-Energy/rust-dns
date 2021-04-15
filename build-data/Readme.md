@@ -10,14 +10,16 @@ Include build data in your program.
 ## Features
 - Saves build-time data:
   - Git commit, branch, and dirtiness
-  - Date & time
-  - Epoch time
-  - Hostname
+  - Source modification date & time
   - Rustc version
+  - Rust channel (stable, nightly, or beta)
 - Does all of its work in your
   [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html).
+- Sets environment variables.
+  Use [`env!`](https://doc.rust-lang.org/core/macro.env.html) to use them
+  in your program.
 - No macros
-- Depends only on `core::alloc` at runtime.
+- No runtime dependencies
 - Light build dependencies
 - `forbid(unsafe_code)`
 - 100% test coverage
@@ -38,59 +40,42 @@ Include build data in your program.
 ```toml
 // Cargo.toml
 [dependencies]
-build-data = "0"
 
 [build-dependencies]
-build-data-writer = "0"
+build-data = "0"
 ```
 
 Add a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html)
 file next to your `Cargo.toml`.
-Call [`build_data_writer::write`](https://docs.rs/build-data-writer/latest/build_data_writer/fn.write.html)
-to collect data and write it to the file.
+Call [`build_data::set_*`](https://docs.rs/build-data/) functions to
+set variables.
 ```rust
 // build.rs
-use std::env;
-use std::path::Path;
 
 fn main() {
-    build_data_writer::write(
-        &Path::new(&env::var_os("OUT_DIR").unwrap())
-        .join("build-data.txt")
-    ).unwrap();
-    build_data_writer::no_debug_rebuilds();
+    build_data::set_GIT_BRANCH();
+    build_data::set_GIT_COMMIT();
+    build_data::set_GIT_DIRTY();
+    build_data::set_SOURCE_TIMESTAMP();
+    build_data::no_debug_rebuilds();
 }
 ```
 
-When you run `cargo build`, Cargo compiles and runs your `build.rs` which
-writes the file:
-```
-// target/build-data.txt
-GIT_BRANCH:release
-GIT_COMMIT:a5547bfb1edb9712588f0f85d3e2c8ba618ac51f
-GIT_DIRTY:false
-HOSTNAME:builder2
-RUSTC_VERSION:rustc 1.53.0-nightly (07e0e2ec2 2021-03-24)
-TIME:2021-04-14T06:25:59+00:00
-TIME_SECONDS:1618381559
-```
-
-Include and parse the file in your program.
-See [`include_str!`](https://doc.rust-lang.org/core/macro.include_str.html),
-[`concat!`](https://doc.rust-lang.org/core/macro.concat.html),
-[`env!`](https://doc.rust-lang.org/core/macro.env.html), and
-[`build_data::BuildData::new`](https://docs.rs/build-data/latest/build_data/struct.BuildData.html#method.new).
+Use [`env!`](https://doc.rust-lang.org/core/macro.env.html) to access the
+variables in your program:
 ```rust
 // src/bin/main.rs
 fn main() {
-    let bd = build_data::BuildData::new(include_str!(
-        concat!(env!("OUT_DIR"), "/build-data.txt")
-    )).unwrap();
-    // Built 2021-04-14T06:25:59+00:00 branch=release
+    // Built from branch=release
     // commit=a5547bfb1edb9712588f0f85d3e2c8ba618ac51f
-    // host=builder2
-    // rustc 1.53.0-nightly (07e0e2ec2 2021-03-24)
-    log!("{}", bd);
+    // dirty=false
+    // source_timestamp=2021-04-14T06:25:59+00:00
+    println!("Built from branch={} commit={} dirty={} source_timestamp={}",
+        env!("GIT_BRANCH"),
+        env!("GIT_COMMIT"),
+        env!("GIT_DIRTY"),
+        env!("SOURCE_TIMESTAMP"),
+    );
 }
 ```
 
@@ -108,18 +93,37 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  build-data 0.1.1
+0/0        0/0          0/0    0/0     0/0      🔒  build-data 0.1.2
+1/1        44/90        2/2    0/0     0/0      ☢️  ├── chrono 0.4.19
+0/19       10/311       0/0    0/0     5/27     ☢️  │   ├── libc 0.2.93
+0/0        0/0          0/0    0/0     0/0      ❓  │   ├── num-integer 0.1.44
+0/0        4/10         0/0    0/0     0/0      ☢️  │   │   └── num-traits 0.2.14
+0/0        4/10         0/0    0/0     0/0      ☢️  │   ├── num-traits 0.2.14
+0/0        0/7          0/0    0/0     0/0      ❓  │   ├── rustc-serialize 0.3.24
+1/1        218/218      0/0    0/0     0/0      ☢️  │   └── time 0.1.44
+0/19       10/311       0/0    0/0     5/27     ☢️  │       ├── libc 0.2.93
+0/0        0/7          0/0    0/0     0/0      ❓  │       └── rustc-serialize 0.3.24
+0/0        0/0          0/0    0/0     0/0      🔒  ├── safe-lock 0.1.3
+0/0        0/0          0/0    0/0     0/0      🔒  └── safe-regex 0.2.3
+0/0        0/0          0/0    0/0     0/0      🔒      └── safe-regex-macro 0.2.3
+0/0        0/0          0/0    0/0     0/0      🔒          ├── safe-proc-macro2 1.0.24
+0/0        0/0          0/0    0/0     0/0      🔒          │   └── unicode-xid 0.2.1
+0/0        0/0          0/0    0/0     0/0      🔒          └── safe-regex-compiler 0.2.3
+0/0        0/0          0/0    0/0     0/0      🔒              ├── safe-proc-macro2 1.0.24
+0/0        0/0          0/0    0/0     0/0      🔒              └── safe-quote 1.0.9
+0/0        0/0          0/0    0/0     0/0      🔒                  └── safe-proc-macro2 1.0.24
 
-0/0        0/0          0/0    0/0     0/0    
+2/21       276/636      2/2    0/0     5/27   
 
 ```
 ## Changelog
+- v0.1.2 - Rewrote based on
+    [feedback](https://www.reddit.com/r/rust/comments/mqnbvw/)
+    from r/rust.
 - v0.1.1 - Update docs.
 - v0.1.0 - Initial version
 
 ## To Do
-- Accept only `&'static str` and remove dependencyon `alloc`.
-- See if we can make `new` into a `const fn`.
 
 ## Happy Contributors 🙂
 Fixing bugs and adding features is easy and fast.

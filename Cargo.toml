@@ -4,7 +4,6 @@ members = [
     "any-range",
     "build-data",
     "build-data-test",
-    "build-data-writer",
     "permit",
     "rustls-pin",
     "safe-lock",

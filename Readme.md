@@ -4,7 +4,6 @@
 
 - [any-range/](any-range/) - `AnyRange<T>` enum can hold any `Range*<T>` type
 - [build-data/](build-data/) - Include build data in your program
-- [build-data-writer/](build-data-writer/) - Companion to `build-data` crate
 - [build-data-test/](build-data-test/) - Integration test for `build-data` crate
 - [permit/](permit/) - A struct for cancelling operations
 - [rustls-pin/](rustls-pin/) - Server certificate pinning with `rustls`

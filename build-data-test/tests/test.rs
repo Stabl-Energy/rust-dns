@@ -1,63 +1,37 @@
 #![forbid(unsafe_code)]
 
-use assert_cmd::prelude::*;
-use spectral::assert_that;
-use spectral::numeric::OrderedAssertions;
-use std::path::{Path, PathBuf};
-
-fn exec(cmd: impl AsRef<str>, params: impl AsRef<str>) -> String {
-    let mut command = std::process::Command::new(cmd.as_ref());
-    String::from_utf8(
-        if params.as_ref().is_empty() {
-            &mut command
-        } else {
-            command.args(params.as_ref().split(" "))
-        }
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone(),
-    )
-    .unwrap()
-    .trim()
-    .to_string()
-}
-
-fn now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-fn rustc_path() -> PathBuf {
-    Path::new(&std::env::var_os("CARGO").unwrap())
-        .parent()
-        .unwrap()
-        .join("rustc")
-}
-
 #[test]
 fn test() {
-    let bd = build_data::BuildData::new(include_str!(concat!(env!("OUT_DIR"), "/build-data.txt")))
-        .unwrap();
-    let after = now();
-    let before = after - 4 * 60 * 60;
-    let expected_time =
-        chrono::TimeZone::timestamp(&chrono::Utc, bd.time_seconds as i64, 0).to_rfc3339();
-    assert_eq!(
-        Some(exec("git", "rev-parse --abbrev-ref=loose HEAD")),
-        bd.git_branch
+    assert!(safe_regex::regex!(br"[0-9]{4}-[0-9]{2}-[0-9]{2}Z")
+        .is_match(env!("SOURCE_DATE").as_bytes()));
+    assert!(safe_regex::regex!(br"[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+        .is_match(env!("SOURCE_TIME").as_bytes()));
+    assert!(
+        safe_regex::regex!(br"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+            .is_match(env!("SOURCE_TIMESTAMP").as_bytes())
     );
-    assert_eq!(Some(exec("git", "rev-parse HEAD")), bd.git_commit);
-    assert_eq!(Some(!exec("git", "status -s").is_empty()), bd.git_dirty);
-    assert_eq!(Some(exec("hostname", "")), bd.hostname);
-    assert_eq!(
-        Some(exec(rustc_path().to_str().unwrap(), "--version")),
-        bd.rustc_version
+    assert!(safe_regex::regex!(br"[0-9]+").is_match(env!("SOURCE_EPOCH_TIME").as_bytes()));
+    assert!(
+        safe_regex::regex!(br"[0-9]{4}-[0-9]{2}-[0-9]{2}Z").is_match(env!("BUILD_DATE").as_bytes())
     );
-    assert_eq!(expected_time, bd.time);
-    assert_that(&bd.time_seconds).is_greater_than_or_equal_to(before);
-    assert_that(&bd.time_seconds).is_less_than_or_equal_to(after);
+    assert!(
+        safe_regex::regex!(br"[0-9]{2}:[0-9]{2}:[0-9]{2}Z").is_match(env!("BUILD_TIME").as_bytes())
+    );
+    assert!(
+        safe_regex::regex!(br"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
+            .is_match(env!("BUILD_TIMESTAMP").as_bytes())
+    );
+    assert!(safe_regex::regex!(br"[0-9]+").is_match(env!("BUILD_EPOCH_TIME").as_bytes()));
+    assert!(safe_regex::regex!(br"[-_.a-zA-Z0-9]+").is_match(env!("BUILD_HOSTNAME").as_bytes()));
+    assert!(safe_regex::regex!(br"[a-zA-Z0-9]+").is_match(env!("GIT_BRANCH").as_bytes()));
+    assert!(safe_regex::regex!(br"[0-9a-f]{40}").is_match(env!("GIT_COMMIT").as_bytes()));
+    assert!(safe_regex::regex!(br"[0-9a-f]{7}").is_match(env!("GIT_COMMIT_SHORT").as_bytes()));
+    assert!(safe_regex::regex!(br"true|false").is_match(env!("GIT_DIRTY").as_bytes()));
+    assert!(safe_regex::regex!(
+        br"(?:rustc )?([0-9]+\.[0-9]+\.[0-9]+)(?:(-beta)|(-nightly))?(?: .*)?"
+    )
+    .is_match(env!("RUSTC_VERSION").as_bytes()));
+    assert!(safe_regex::regex!(br"[0-9]+\.[0-9]+\.[0-9]+")
+        .is_match(env!("RUSTC_VERSION_SEMVER").as_bytes()));
+    assert!(safe_regex::regex!(br"stable|beta|nightly").is_match(env!("RUST_CHANNEL").as_bytes()));
 }

@@ -9,10 +9,7 @@ version = "0.1.0"
 [dependencies]
 
 [dev-dependencies]
-assert_cmd = "1"
-build-data = { version = "0", path = "../build-data" }
-chrono = { version = "^0.4.19", features = ["alloc"] }
-spectral = "^0.6.0"
+safe-regex = "^0.2.3"
 
 [build-dependencies]
-build-data-writer = { version = "0", path = "../build-data-writer" }
+build-data = { version = "0", path = "../build-data" }
