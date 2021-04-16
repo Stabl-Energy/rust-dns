@@ -64,7 +64,7 @@
 //! }
 //! wait_for_shutdown_signal();
 //! // Revoke all thread permits and wait for them to
-//! // finish an drop their permits.
+//! // finish and drop their permits.
 //! top_permit.revoke().try_wait_for(
 //!     core::time::Duration::from_secs(3));
 //! ```
@@ -285,7 +285,7 @@ impl std::error::Error for DeadlineExceeded {}
 /// }
 /// wait_for_shutdown_signal();
 /// // Revoke all thread permits and wait for them to
-/// // finish an drop their permits.
+/// // finish and drop their permits.
 /// top_permit.revoke().try_wait_for(
 ///     core::time::Duration::from_secs(3));
 /// ```
