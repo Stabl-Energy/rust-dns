@@ -32,5 +32,5 @@ rust-stable:
     - cargo fmt --version || rustup component add rustfmt
     - cargo clippy --version || rustup component add clippy
     - git --version
-    - ./check-all.sh
+    - ./check-all.sh --skip-readme-check
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true

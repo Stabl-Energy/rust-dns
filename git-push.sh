@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -e
+script_dir="$(
+  cd "$(dirname "$0")"
+  pwd
+)"
 set -x
-"$(dirname "$0")"/check-all.sh +stable "$@"
+"$script_dir"/check-all.sh
 git push --follow-tags

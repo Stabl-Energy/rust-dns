@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 set -e
-set -x
-../check-all.sh
+
+script_dir="$(
+  cd "$(dirname "$0")"
+  pwd
+)"
+
+if [ "$1" != "--allow-dirty" ] && [ -n "$(git status -s)" ]; then
+  echo "ERROR git repository has uncommited changes." >&2
+  exit 1
+fi
+
+"$script_dir"/check-all.sh
 
 if ! (git branch --show-current | grep -q -E '^main$'); then
   echo "Current git branch is not main."
@@ -9,20 +19,14 @@ if ! (git branch --show-current | grep -q -E '^main$'); then
 fi
 
 # Get version line from Cargo.toml.
-version_line=$(grep -E '^\s*version\s*=\s*".*"\s*$' <Cargo.toml)
-if [ -z "$version_line" ]; then
-  echo "Did not find 'version' in Cargo.toml"
-  exit 1
-fi
-# Get the version value from between the quotes.
-version=$(echo "$version_line" | sed 's/^.*"\(.*\)"\s*$/\1/g')
+version=$(cargo pkgid |cut -d '#' -f 2)
 # Check the value.
 if ! (echo "$version" | grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+$'); then
   echo "Cargo.toml has invalid version '$version'"
   exit 1
 fi
 
-package_name=$(basename ${PWD})
+package_name=$(basename "$PWD")
 
 # Create git tag pointing at HEAD, if it doesn't already exist.
 tag="$package_name-v$version"
