@@ -98,7 +98,7 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  build-data 0.1.2
+0/0        0/0          0/0    0/0     0/0      🔒  build-data 0.1.3
 1/1        44/90        2/2    0/0     0/0      ☢️  ├── chrono 0.4.19
 0/19       10/311       0/0    0/0     5/27     ☢️  │   ├── libc 0.2.93
 0/0        0/0          0/0    0/0     0/0      ❓  │   ├── num-integer 0.1.44
