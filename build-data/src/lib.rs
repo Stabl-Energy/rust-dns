@@ -25,6 +25,11 @@
 //! - 100% test coverage
 //!
 //! ## Alternatives
+//! - Environment variables that cargo sets for crates:
+//!   - `CARGO_PKG_NAME`
+//!   - `CARGO_PKG_VERSION`
+//!   - `CARGO_BIN_NAME`
+//!   - [others](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates)
 //! - [`vergen`](https://crates.io/crates/vergen)
 //!   - Mature & very popular
 //!   - Good API, needs only `env!` to retrieve values
@@ -87,6 +92,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.3 - Update docs.
 //! - v0.1.2 - Rewrote based on
 //!     [feedback](https://www.reddit.com/r/rust/comments/mqnbvw/)
 //!     from r/rust.
@@ -433,7 +439,6 @@ pub fn parse_rustc_channel(version: impl AsRef<str>) -> Result<RustChannel, Stri
 pub fn get_source_time() -> Result<i64, String> {
     static CACHED_VALUE: OnceI64 = OnceI64::new();
     CACHED_VALUE.get(|| {
-        // https://reproducible-builds.org/docs/source-date-epoch/
         if let Some(value) = get_env("SOURCE_DATE_EPOCH").unwrap() {
             return value.parse().map_err(|_| {
                 format!(
@@ -547,7 +552,7 @@ pub fn set_SOURCE_EPOCH_TIME() {
 /// Use `env!` in your `main.rs` to use the variable.
 ///
 /// Calling this will make your build
-/// [non-reproducible[(https://reproducible-builds.org/docs/timestamps/).
+/// [non-reproducible](https://reproducible-builds.org/docs/timestamps/).
 ///
 /// Example value: `"2021-04-14Z"`
 pub fn set_BUILD_DATE() {
@@ -560,7 +565,7 @@ pub fn set_BUILD_DATE() {
 /// Use `env!` in your `main.rs` to use the variable.
 ///
 /// Calling this will make your build
-/// [non-reproducible[(https://reproducible-builds.org/docs/timestamps/).
+/// [non-reproducible](https://reproducible-builds.org/docs/timestamps/).
 ///
 /// Example value: `"03:25:07Z"`
 pub fn set_BUILD_TIME() {
@@ -573,7 +578,7 @@ pub fn set_BUILD_TIME() {
 /// Use `env!` in your `main.rs` to use the variable.
 ///
 /// Calling this will make your build
-/// [non-reproducible[(https://reproducible-builds.org/docs/timestamps/).
+/// [non-reproducible](https://reproducible-builds.org/docs/timestamps/).
 ///
 /// Example value: `"2021-04-14T03:25:07Z"`
 pub fn set_BUILD_TIMESTAMP() {
@@ -589,7 +594,7 @@ pub fn set_BUILD_TIMESTAMP() {
 /// Use `env!` in your `main.rs` to use the variable.
 ///
 /// Calling this will make your build
-/// [non-reproducible[(https://reproducible-builds.org/docs/timestamps/).
+/// [non-reproducible](https://reproducible-builds.org/docs/timestamps/).
 ///
 /// Example value: `"1618370707"`
 pub fn set_BUILD_EPOCH_TIME() {
@@ -602,7 +607,7 @@ pub fn set_BUILD_EPOCH_TIME() {
 /// Use `env!` in your `main.rs` to use the variable.
 ///
 /// Calling this will make your build
-/// [non-reproducible[(https://reproducible-builds.org/docs/timestamps/).
+/// [non-reproducible](https://reproducible-builds.org/docs/timestamps/).
 ///
 /// Example value: `"builder2"`
 ///

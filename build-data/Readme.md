@@ -25,6 +25,11 @@ Include build data in your program.
 - 100% test coverage
 
 ## Alternatives
+- Environment variables that cargo sets for crates:
+  - `CARGO_PKG_NAME`
+  - `CARGO_PKG_VERSION`
+  - `CARGO_BIN_NAME`
+  - [others](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates)
 - [`vergen`](https://crates.io/crates/vergen)
   - Mature & very popular
   - Good API, needs only `env!` to retrieve values
@@ -117,6 +122,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
+- v0.1.3 - Update docs.
 - v0.1.2 - Rewrote based on
     [feedback](https://www.reddit.com/r/rust/comments/mqnbvw/)
     from r/rust.
