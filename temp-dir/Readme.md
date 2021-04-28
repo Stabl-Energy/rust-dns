@@ -76,12 +76,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.10
+0/0        0/0          0/0    0/0     0/0      🔒  temp-dir 0.1.11
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 ## Changelog
+- v0.1.11 - Return `std::io::Error` instead of `String`.
 - v0.1.10 - Implement `Eq`, `Ord`, `Hash`
 - v0.1.9 - Increase test coverage
 - v0.1.8 - Add [`leak`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.leak).

@@ -148,7 +148,7 @@ impl TempDir {
     /// // Prints "/tmp/t1a9b-0".
     /// println!("{:?}", temp_dir::TempDir::new().unwrap().path());
     /// ```
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self, std::io::Error> {
         // Prefix with 't' to avoid name collisions with `temp-file` crate.
         Self::with_prefix("t")
     }
@@ -177,8 +177,12 @@ impl TempDir {
             std::process::id(),
             COUNTER.fetch_add(1, Ordering::AcqRel),
         ));
-        std::fs::create_dir(&path_buf)
-            .map_err(|e| format!("error creating directory {:?}: {}", &path_buf, e))?;
+        std::fs::create_dir(&path_buf).map_err(|e| {
+            std::io::Error::new(
+                e.kind(),
+                format!("error creating directory {:?}: {}", &path_buf, e),
+            )
+        })?;
         Ok(Self {
             path_buf: Some(path_buf),
             panic_on_delete_err: false,

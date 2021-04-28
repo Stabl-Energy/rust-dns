@@ -57,6 +57,7 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.6 - Return `std::io::Error` instead of `String`.
 //! - v0.1.5 - Increase test coverage
 //! - v0.1.4 - Add
 //!   [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)
@@ -119,7 +120,7 @@ impl TempFile {
     /// // Prints "/tmp/1a9b0".
     /// println!("{:?}", temp_file::TempFile::new().unwrap().path());
     /// ```
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self, std::io::Error> {
         Self::with_prefix("")
     }
 
@@ -136,7 +137,7 @@ impl TempFile {
     /// // Prints "/tmp/ok1a9b0".
     /// println!("{:?}", temp_file::TempFile::with_prefix("ok").unwrap().path());
     /// ```
-    pub fn with_prefix(prefix: impl AsRef<str>) -> Result<Self, String> {
+    pub fn with_prefix(prefix: impl AsRef<str>) -> Result<Self, std::io::Error> {
         let mut open_opts = std::fs::OpenOptions::new();
         open_opts.create_new(true);
         open_opts.write(true);
@@ -146,9 +147,12 @@ impl TempFile {
             std::process::id(),
             COUNTER.fetch_add(1, Ordering::AcqRel),
         ));
-        open_opts
-            .open(&path_buf)
-            .map_err(|e| format!("error creating file {:?}: {}", &path_buf, e))?;
+        open_opts.open(&path_buf).map_err(|e| {
+            std::io::Error::new(
+                e.kind(),
+                format!("error creating file {:?}: {}", &path_buf, e),
+            )
+        })?;
         Ok(Self {
             path_buf: Some(path_buf),
             panic_on_delete_err: false,
@@ -160,10 +164,11 @@ impl TempFile {
     /// # Errors
     /// Returns `Err` when it fails to write all of `contents` to the file.
     #[allow(clippy::missing_panics_doc)]
-    pub fn with_contents(self, contents: &[u8]) -> Result<Self, String> {
+    pub fn with_contents(self, contents: &[u8]) -> Result<Self, std::io::Error> {
         let path = self.path_buf.as_ref().unwrap();
-        std::fs::write(path, contents)
-            .map_err(|e| format!("error writing file {:?}: {}", path, e))?;
+        std::fs::write(path, contents).map_err(|e| {
+            std::io::Error::new(e.kind(), format!("error writing file {:?}: {}", path, e))
+        })?;
         Ok(self)
     }
 

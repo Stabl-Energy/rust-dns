@@ -7,6 +7,7 @@ use std::path::Path;
 // The error tests require all tests to run single-threaded.
 static LOCK: SafeLock = SafeLock::new();
 
+// TODO(mleonhard) Remove and replace with a simple metadata().unwrap_err() call.
 fn expect_not_found(path: impl AsRef<Path>) {
     match std::fs::metadata(&path) {
         Ok(_) => panic!("exists: {}", path.as_ref().to_string_lossy()),
@@ -36,23 +37,16 @@ fn empty() {
 fn empty_error() {
     let _guard = LOCK.lock();
     let previous_counter_value = COUNTER.load(Ordering::SeqCst);
-    let temp_file = crate::empty();
+    let _temp_file = crate::empty();
     COUNTER.store(previous_counter_value, Ordering::SeqCst);
-    let e = if let Err(e) = std::panic::catch_unwind(|| crate::empty()) {
-        e
-    } else {
-        panic!("expected panic");
-    };
-    assert_eq!(
-        &format!(
-            "called `Result::unwrap()` on an `Err` value: {:?}",
-            format!(
-                "error creating file {:?}: File exists (os error 17)",
-                temp_file.path()
-            )
-        ),
-        e.downcast_ref::<String>().unwrap()
+    let any = std::panic::catch_unwind(|| crate::empty()).unwrap_err();
+    let msg = any.downcast_ref::<String>().unwrap();
+    assert!(
+        msg.contains("error creating file"),
+        "unexpected error {:?}",
+        msg
     );
+    assert!(msg.contains("AlreadyExists"), "unexpected error {:?}", msg);
 }
 
 #[test]
@@ -88,12 +82,13 @@ fn temp_file_new_error() {
     let previous_counter_value = COUNTER.load(Ordering::SeqCst);
     let temp_file = TempFile::new().unwrap();
     COUNTER.store(previous_counter_value, Ordering::SeqCst);
-    assert_eq!(
-        Err(format!(
-            "error creating file {:?}: File exists (os error 17)",
-            temp_file.path()
-        )),
-        TempFile::new()
+    let e = TempFile::new().unwrap_err();
+    assert_eq!(std::io::ErrorKind::AlreadyExists, e.kind());
+    assert!(
+        e.to_string()
+            .starts_with(&format!("error creating file {:?}", temp_file.path())),
+        "unexpected error {:?}",
+        e
     );
 }
 
@@ -122,12 +117,13 @@ fn temp_file_with_prefix_error() {
     let previous_counter_value = COUNTER.load(Ordering::SeqCst);
     let temp_file = TempFile::with_prefix("prefix1").unwrap();
     COUNTER.store(previous_counter_value, Ordering::SeqCst);
-    assert_eq!(
-        Err(format!(
-            "error creating file {:?}: File exists (os error 17)",
-            temp_file.path()
-        )),
-        TempFile::with_prefix("prefix1")
+    let e = TempFile::with_prefix("prefix1").unwrap_err();
+    assert_eq!(std::io::ErrorKind::AlreadyExists, e.kind());
+    assert!(
+        e.to_string()
+            .starts_with(&format!("error creating file {:?}", temp_file.path())),
+        "unexpected error {:?}",
+        e
     );
 }
 
@@ -150,26 +146,25 @@ fn temp_file_with_contents_error() {
     std::fs::remove_file(temp_file.path()).unwrap();
     let temp_file_path = temp_file.path().to_path_buf();
     std::fs::create_dir(&temp_file_path).unwrap();
-    assert_eq!(
-        Err(format!(
-            "error writing file {:?}: Is a directory (os error 21)",
-            temp_file.path()
-        )),
-        temp_file.with_contents(b"abc")
-    );
+    let result = temp_file.with_contents(b"abc");
     std::fs::remove_dir(&temp_file_path).unwrap();
+    let e = result.unwrap_err();
+    assert!(
+        e.to_string()
+            .starts_with(&format!("error writing file {:?}", temp_file_path)),
+        "unexpected error {:?}",
+        e
+    );
 }
 
 #[test]
 fn test_drop() {
     let _guard = LOCK.lock();
-    let path_copy;
-    {
-        let temp_file = TempFile::new().unwrap();
-        path_copy = temp_file.path().to_path_buf();
-        TempFile::new().unwrap();
-    }
-    expect_not_found(&path_copy);
+    let temp_file = TempFile::new().unwrap();
+    let path = temp_file.path().to_path_buf();
+    TempFile::new().unwrap();
+    drop(temp_file);
+    expect_not_found(&path);
 }
 
 #[test]
@@ -215,17 +210,12 @@ fn drop_error_panic() {
     let result = std::panic::catch_unwind(move || drop(f));
     std::fs::metadata(&path).unwrap();
     std::fs::remove_dir(&path).unwrap();
-    match result {
-        Ok(_) => panic!("expected panic"),
-        Err(any) => {
-            let e = any.downcast::<String>().unwrap();
-            assert!(
-                e.starts_with(&format!("error removing file {:?}: ", path)),
-                "unexpected error {:?}",
-                e
-            );
-        }
-    }
+    let msg = result.unwrap_err().downcast::<String>().unwrap();
+    assert!(
+        msg.contains("error removing file ",),
+        "unexpected panic message {:?}",
+        msg
+    );
 }
 
 #[test]
