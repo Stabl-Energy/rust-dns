@@ -87,6 +87,8 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
+- v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
+  where `revoke()` and then `wait()` would not wait.
 - v0.1.3
   - Don't keep or wake stale
     [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.

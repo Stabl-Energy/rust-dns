@@ -196,6 +196,23 @@ fn wait() {
 }
 
 #[test]
+// https://gitlab.com/leonhard-llc/ops/-/issues/2
+fn revoke_then_wait() {
+    let before = Instant::now();
+    let top_permit = permit::Permit::new();
+    for _ in 0..2 {
+        let permit = top_permit.new_sub();
+        std::thread::spawn(move || {
+            std::thread::sleep(core::time::Duration::from_millis(50));
+            drop(permit);
+        });
+    }
+    top_permit.revoke();
+    top_permit.wait();
+    expect_elapsed(before, 50..100).unwrap();
+}
+
+#[test]
 fn try_wait_for() {
     let before = Instant::now();
     let top_permit = permit::Permit::new();

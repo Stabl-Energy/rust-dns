@@ -72,6 +72,8 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
+//!   where `revoke()` and then `wait()` would not wait.
 //! - v0.1.3
 //!   - Don't keep or wake stale
 //!     [`std::task::Waker`](https://doc.rust-lang.org/std/task/struct.Waker.html) structs.
@@ -147,11 +149,6 @@ impl Inner {
         self.subs.remove(&arc_node);
     }
 
-    #[must_use]
-    pub fn has_subs(&self) -> bool {
-        !self.subs.is_empty()
-    }
-
     pub fn poll(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         if self.revoked {
             Poll::Ready(())
@@ -216,8 +213,8 @@ impl Node {
     }
 
     #[must_use]
-    pub fn has_subs(&self) -> bool {
-        self.inner.lock().unwrap().has_subs()
+    pub fn has_subs(self: &Arc<Self>) -> bool {
+        Arc::weak_count(self) != 0
     }
 
     #[must_use]
