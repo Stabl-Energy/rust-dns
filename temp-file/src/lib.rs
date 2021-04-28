@@ -195,7 +195,7 @@ impl TempFile {
         Self::remove_file(&self.path_buf.take().unwrap())
     }
 
-    /// Make the struct panic on Drop if it hits an error while
+    /// Make the struct panic on drop if it hits an error while
     /// removing the file.
     #[must_use]
     pub fn panic_on_cleanup_error(mut self) -> Self {

@@ -204,7 +204,7 @@ impl TempDir {
         })
     }
 
-    /// Remove the directory on its contents now.  Do nothing later on drop.
+    /// Remove the directory and its contents now.  Do nothing later on drop.
     ///
     /// # Errors
     /// Returns an error if the directory exists and we fail to remove it and its contents.
@@ -213,7 +213,7 @@ impl TempDir {
         Self::remove_dir(&self.path_buf.take().unwrap())
     }
 
-    /// Make the struct panic on Drop if it hits an error while
+    /// Make the struct panic on drop if it hits an error while
     /// removing the directory or its contents.
     #[must_use]
     pub fn panic_on_cleanup_error(mut self) -> Self {
