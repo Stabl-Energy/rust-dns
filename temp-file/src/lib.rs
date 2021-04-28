@@ -57,7 +57,10 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
-//! - v0.1.6 - Return `std::io::Error` instead of `String`.
+//! - v0.1.6
+//!   - Return `std::io::Error` instead of `String`.
+//!   - Add
+//!     [`cleanup`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.cleanup).
 //! - v0.1.5 - Increase test coverage
 //! - v0.1.4 - Add
 //!   [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)
@@ -108,6 +111,17 @@ pub struct TempFile {
     panic_on_delete_err: bool,
 }
 impl TempFile {
+    fn remove_file(path: &Path) -> Result<(), std::io::Error> {
+        match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(std::io::Error::new(
+                e.kind(),
+                format!("error removing file {:?}: {}", path, e),
+            )),
+        }
+    }
+
     /// Create a new empty file in a system temporary directory.
     ///
     /// Drop the returned struct to delete the file.
@@ -172,6 +186,15 @@ impl TempFile {
         Ok(self)
     }
 
+    /// Remove the file now.  Do nothing later on drop.
+    ///
+    /// # Errors
+    /// Returns an error if the file exists and we fail to remove it.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn cleanup(mut self) -> Result<(), std::io::Error> {
+        Self::remove_file(&self.path_buf.take().unwrap())
+    }
+
     /// Make the struct panic on Drop if it hits an error while
     /// removing the file.
     #[must_use]
@@ -198,11 +221,11 @@ impl TempFile {
 }
 impl Drop for TempFile {
     fn drop(&mut self) {
-        if let Some(path) = &self.path_buf {
-            let result = std::fs::remove_file(path);
+        if let Some(path) = self.path_buf.take() {
+            let result = Self::remove_file(&path);
             if self.panic_on_delete_err {
                 if let Err(e) = result {
-                    panic!("error removing file {:?}: {}", path, e);
+                    panic!("{}", e);
                 }
             }
         }

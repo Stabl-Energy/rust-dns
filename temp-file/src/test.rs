@@ -2,23 +2,9 @@ use crate::{TempFile, COUNTER};
 use core::sync::atomic::Ordering;
 use safe_lock::SafeLock;
 use std::io::ErrorKind;
-use std::path::Path;
 
 // The error tests require all tests to run single-threaded.
 static LOCK: SafeLock = SafeLock::new();
-
-// TODO(mleonhard) Remove and replace with a simple metadata().unwrap_err() call.
-fn expect_not_found(path: impl AsRef<Path>) {
-    match std::fs::metadata(&path) {
-        Ok(_) => panic!("exists: {}", path.as_ref().to_string_lossy()),
-        Err(e) if e.kind() == ErrorKind::NotFound => {}
-        Err(e) => panic!(
-            "error getting metadata of {}: {}",
-            path.as_ref().to_string_lossy(),
-            e
-        ),
-    }
-}
 
 #[test]
 fn empty() {
@@ -158,13 +144,71 @@ fn temp_file_with_contents_error() {
 }
 
 #[test]
+fn cleanup() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFile::new().unwrap();
+    let path = temp_file.path().to_path_buf();
+    temp_file.cleanup().unwrap();
+    assert_eq!(
+        ErrorKind::NotFound,
+        std::fs::metadata(&path).unwrap_err().kind()
+    );
+}
+
+#[test]
+fn leak_then_cleanup() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFile::new().unwrap();
+    let path = temp_file.path().to_path_buf();
+    temp_file.cleanup().unwrap();
+    assert_eq!(
+        ErrorKind::NotFound,
+        std::fs::metadata(&path).unwrap_err().kind()
+    );
+}
+
+#[test]
+fn cleanup_already_deleted() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFile::new().unwrap();
+    let path = temp_file.path().to_path_buf();
+    std::fs::remove_file(&path).unwrap();
+    temp_file.cleanup().unwrap();
+    assert_eq!(
+        ErrorKind::NotFound,
+        std::fs::metadata(&path).unwrap_err().kind()
+    );
+}
+
+#[test]
+fn cleanup_error() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFile::new().unwrap();
+    std::fs::remove_file(temp_file.path()).unwrap();
+    let path = temp_file.path().to_path_buf();
+    std::fs::create_dir(&path).unwrap();
+    let result = temp_file.cleanup();
+    std::fs::remove_dir(&path).unwrap();
+    let e = result.unwrap_err();
+    assert!(
+        e.to_string()
+            .starts_with(&format!("error removing file {:?}", path)),
+        "unexpected error {:?}",
+        e
+    );
+}
+
+#[test]
 fn test_drop() {
     let _guard = LOCK.lock();
     let temp_file = TempFile::new().unwrap();
     let path = temp_file.path().to_path_buf();
     TempFile::new().unwrap();
     drop(temp_file);
-    expect_not_found(&path);
+    assert_eq!(
+        ErrorKind::NotFound,
+        std::fs::metadata(&path).unwrap_err().kind()
+    );
 }
 
 #[test]

@@ -74,7 +74,10 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 
 ```
 ## Changelog
-- v0.1.6 - Return `std::io::Error` instead of `String`.
+- v0.1.6
+  - Return `std::io::Error` instead of `String`.
+  - Add
+    [`cleanup`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.cleanup).
 - v0.1.5 - Increase test coverage
 - v0.1.4 - Add
   [`leak`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.leak)

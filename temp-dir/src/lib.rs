@@ -65,6 +65,10 @@
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
+//! - v0.1.11
+//!   - Return `std::io::Error` instead of `String`.
+//!   - Add
+//!     [`cleanup`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.cleanup).
 //! - v0.1.10 - Implement `Eq`, `Ord`, `Hash`
 //! - v0.1.9 - Increase test coverage
 //! - v0.1.8 - Add [`leak`](https://docs.rs/temp-dir/latest/temp_dir/struct.TempDir.html#method.leak).
@@ -132,6 +136,17 @@ pub struct TempDir {
     panic_on_delete_err: bool,
 }
 impl TempDir {
+    fn remove_dir(path: &Path) -> Result<(), std::io::Error> {
+        match std::fs::remove_dir_all(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(std::io::Error::new(
+                e.kind(),
+                format!("error removing directory and contents {:?}: {}", path, e),
+            )),
+        }
+    }
+
     /// Create a new empty directory in a system temporary directory.
     ///
     /// Drop the struct to delete the directory and everything under it.
@@ -170,7 +185,7 @@ impl TempDir {
     /// // Prints "/tmp/ok1a9b-0".
     /// println!("{:?}", temp_dir::TempDir::with_prefix("ok").unwrap().path());
     /// ```
-    pub fn with_prefix(prefix: impl AsRef<str>) -> Result<Self, String> {
+    pub fn with_prefix(prefix: impl AsRef<str>) -> Result<Self, std::io::Error> {
         let path_buf = std::env::temp_dir().join(format!(
             "{}{:x}-{:x}",
             prefix.as_ref(),
@@ -187,6 +202,15 @@ impl TempDir {
             path_buf: Some(path_buf),
             panic_on_delete_err: false,
         })
+    }
+
+    /// Remove the directory on its contents now.  Do nothing later on drop.
+    ///
+    /// # Errors
+    /// Returns an error if the directory exists and we fail to remove it and its contents.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn cleanup(mut self) -> Result<(), std::io::Error> {
+        Self::remove_dir(&self.path_buf.take().unwrap())
     }
 
     /// Make the struct panic on Drop if it hits an error while
@@ -224,11 +248,11 @@ impl TempDir {
 }
 impl Drop for TempDir {
     fn drop(&mut self) {
-        if let Some(path) = &self.path_buf {
-            let result = std::fs::remove_dir_all(path);
+        if let Some(path) = self.path_buf.take() {
+            let result = Self::remove_dir(&path);
             if self.panic_on_delete_err {
                 if let Err(e) = result {
-                    panic!("error removing directory and contents {:?}: {}", path, e);
+                    panic!("{}", e);
                 }
             }
         }
