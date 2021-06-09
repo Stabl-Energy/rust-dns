@@ -32,6 +32,8 @@
 //! - [`async_ctx`](https://crates.io/crates/async_ctx)
 //!   - Good API
 //!   - Async only
+//! - [`stopper`](https://crates.io/crates/stopper/)
+//!   - Async only
 //! - [`io-context`](https://crates.io/crates/io-context)
 //!   - Holds [Any](https://doc.rust-lang.org/core/any/trait.Any.html) values
 //!   - Unmaintained
