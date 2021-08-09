@@ -1,0 +1,15 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["network-programming"]
+description = "A threaded DNS server with no `unsafe`"
+edition = "2018"
+keywords = ["dns", "server", "safe"]
+license = "Apache-2.0"
+name = "safe-dns"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+
+[dev-dependencies]

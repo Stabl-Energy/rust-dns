@@ -6,6 +6,7 @@ members = [
     "build-data-test",
     "permit",
     "rustls-pin",
+    "safe-dns",
     "safe-lock",
     "temp-dir",
     "temp-file",

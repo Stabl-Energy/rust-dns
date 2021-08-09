@@ -10,6 +10,7 @@ time (
   ./check.sh build-data-test
   ./check.sh permit
   ./check.sh rustls-pin
+  ./check.sh safe-dns
   ./check.sh safe-lock
   ./check.sh temp-dir
   ./check.sh temp-file
