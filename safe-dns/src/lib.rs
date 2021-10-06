@@ -64,23 +64,22 @@ impl DnsName {
         if !value.is_ascii() {
             return false;
         }
-        value.split(".").all(Self::is_valid_label)
+        value.split('.').all(Self::is_valid_label)
     }
 
+    /// # Errors
+    /// Returns an error when `value` is not a valid DNS name.
     pub fn new(value: impl AsRef<str>) -> Result<Self, String> {
         // Name syntax: https://datatracker.ietf.org/doc/html/rfc1035#page-8
         let mut trimmed = value.as_ref();
-        trimmed = if trimmed.ends_with(".") {
-            &trimmed[..(trimmed.len() - 1)]
-        } else {
-            trimmed
-        };
-        if !Self::is_valid_name(trimmed.as_ref()) {
+        trimmed = trimmed.strip_suffix('.').unwrap_or(trimmed);
+        if !Self::is_valid_name(trimmed) {
             return Self::err(value);
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
     }
 
+    #[must_use]
     pub fn inner(&self) -> &str {
         &self.0
     }
