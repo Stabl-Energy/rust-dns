@@ -8,6 +8,14 @@
 //! A threaded DNS server library.
 //!
 //! ## Use Cases
+//! - Make your API server its own DNS server.
+//!   This eliminates the DNS server as a separate point of failure.
+//! - Keep your DNS config in code, next to your server code.
+//!   Include it in code reviews and integration tests.
+//! - DNS-based
+//!   [domain validation for free ACME certificates](https://letsencrypt.org/how-it-works/).
+//!   This is useful for servers that don't listen on port 80.
+//!   Servers on port 80 can use HTTP for domain validation and don't need to use this.
 //!
 //! ## Features
 //! - Depends only on `std`
@@ -16,21 +24,76 @@
 //!
 //! ## Limitations
 //!
-//! ## Alternatives
+//! ## Example
 //!
 //! ## Related Crates
-//!
-//! ## Example
 //!
 //! ## Cargo Geiger Safety Report
 //!
 //! ## Changelog
 //! - v0.1.0 - Initial version
+//!
+//! # To Do
+//! - Ergonomic constructors that take `OsStr`, for using environment variables
+//!
+//! ## Alternatives
+//!
 #![forbid(unsafe_code)]
 
 use core::fmt::Display;
 use std::fmt::Formatter;
+use std::net::IpAddr;
 
+/// A name that conforms to the conventions in
+/// [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1):
+///
+/// > 2.3.1. Preferred name syntax
+/// >
+/// > The DNS specifications attempt to be as general as possible in the rules for constructing
+/// > domain names.  The idea is that the name of any existing object can be expressed as a domain
+/// > name with minimal changes.
+/// >
+/// > However, when assigning a domain name for an object, the prudent user will select a name
+/// > which satisfies both the rules of the domain system and any existing rules for the object,
+/// > whether these rules are published or implied by existing programs.
+/// >
+/// > For example, when naming a mail domain, the user should satisfy both the rules of this memo
+/// > and those in [RFC-822](https://datatracker.ietf.org/doc/html/rfc822).  When creating a new
+/// > host name, the old rules for HOSTS.TXT should be followed.  This avoids problems when old
+/// > software is converted to use domain names.
+/// >
+/// > The following syntax will result in fewer problems with many
+/// >
+/// > applications that use domain names (e.g., mail, TELNET).
+/// >
+/// > `<domain> ::= <subdomain> | " "`
+/// >
+/// > `<subdomain> ::= <label> | <subdomain> "." <label>`
+/// >
+/// > `<label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]`
+/// >
+/// > `<ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>`
+/// >
+/// > `<let-dig-hyp> ::= <let-dig> | "-"`
+/// >
+/// > `<let-dig> ::= <letter> | <digit>`
+/// >
+/// > `<letter> ::=` any one of the 52 alphabetic characters `A` through `Z` in upper case
+/// > and `a` through `z` in lower case
+/// >
+/// > `<digit> ::=` any one of the ten digits `0` through `9`
+/// >
+/// > Note that while upper and lower case letters are allowed in domain names, no significance is
+/// > attached to the case.  That is, two names with the same spelling but different case are to be
+/// > treated as if identical.
+/// >
+/// > The labels must follow the rules for ARPANET host names.  They must start with a letter, end
+/// > with a letter or digit, and have as interior characters only letters, digits, and hyphen.
+/// > There are also some restrictions on the length.  Labels must be 63 characters or less.
+/// >
+/// > For example, the following strings identify hosts in the Internet:
+/// >
+/// > `A.ISI.EDU XX.LCS.MIT.EDU SRI-NIC.ARPA`
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DnsName(String);
 impl DnsName {
@@ -64,18 +127,20 @@ impl DnsName {
         if !value.is_ascii() {
             return false;
         }
-        value.split(".").all(Self::is_valid_label)
+        value.split('.').all(Self::is_valid_label)
     }
 
+    /// # Errors
+    /// Returns an error when `value` is not a valid DNS name.
     pub fn new(value: &str) -> Result<Self, String> {
-        // Name syntax: https://datatracker.ietf.org/doc/html/rfc1035#page-8
-        let trimmed = value.strip_suffix(".").unwrap_or(value);
+        let trimmed = value.strip_suffix('.').unwrap_or(value);
         if !Self::is_valid_name(trimmed) {
             return Self::err(value);
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
     }
 
+    #[must_use]
     pub fn inner(&self) -> &str {
         &self.0
     }
@@ -85,92 +150,204 @@ impl Display for DnsName {
         write!(f, "{}", self.0)
     }
 }
+impl std::convert::TryFrom<&'static str> for DnsName {
+    type Error = String;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dns_name_separators() {
-        // Separators.
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".\"".to_string()),
-            DnsName::new(".")
-        );
-        assert_eq!("a", DnsName::new("a.").unwrap().inner());
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a..\"".to_string()),
-            DnsName::new("a..")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".a\"".to_string()),
-            DnsName::new(".a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"b..a\"".to_string()),
-            DnsName::new("b..a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".b.a\"".to_string()),
-            DnsName::new(".b.a")
-        );
-        // Labels.
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"\"".to_string()),
-            DnsName::new("")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a\u{263A}\"".to_string()),
-            DnsName::new("a\u{263A}")
-        );
-        assert_eq!("a", DnsName::new("a").unwrap().inner());
-        assert_eq!("b", DnsName::new("b").unwrap().inner());
-        assert_eq!("z", DnsName::new("z").unwrap().inner());
-        assert_eq!("abc", DnsName::new("ABC").unwrap().inner());
-        assert_eq!("b", DnsName::new("B").unwrap().inner());
-        assert_eq!("z", DnsName::new("Z").unwrap().inner());
-        assert_eq!(
-            "abcdefghijklmnopqrstuvwxyz",
-            DnsName::new("abcdefghijklmnopqrstuvwxyz").unwrap().inner()
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"1\"".to_string()),
-            DnsName::new("1")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"1a\"".to_string()),
-            DnsName::new("1a")
-        );
-        assert_eq!("a0", DnsName::new("a0").unwrap().inner());
-        assert_eq!("a1", DnsName::new("a1").unwrap().inner());
-        assert_eq!("a9", DnsName::new("a9").unwrap().inner());
-        assert_eq!("a9876543210", DnsName::new("a9876543210").unwrap().inner());
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"-\"".to_string()),
-            DnsName::new("-")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a-\"".to_string()),
-            DnsName::new("a-")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"-a\"".to_string()),
-            DnsName::new("-a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a-.b\"".to_string()),
-            DnsName::new("a-.b")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a.-b\"".to_string()),
-            DnsName::new("a.-b")
-        );
-        assert_eq!("a-b", DnsName::new("a-b").unwrap().inner());
-        assert_eq!("a-0", DnsName::new("a-0").unwrap().inner());
-        assert_eq!("a---b", DnsName::new("a---b").unwrap().inner());
-        assert_eq!(
-            "xyz321-654abc",
-            DnsName::new("Xyz321-654abC").unwrap().inner()
-        );
+    fn try_from(value: &'static str) -> Result<Self, Self::Error> {
+        DnsName::new(value)
     }
+}
+#[cfg(test)]
+#[test]
+fn test_dns_name() {
+    // Separators.
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \".\"".to_string()),
+        DnsName::new(".")
+    );
+    assert_eq!("a", DnsName::new("a.").unwrap().inner());
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"a..\"".to_string()),
+        DnsName::new("a..")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \".a\"".to_string()),
+        DnsName::new(".a")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"b..a\"".to_string()),
+        DnsName::new("b..a")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \".b.a\"".to_string()),
+        DnsName::new(".b.a")
+    );
+    // Labels.
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"\"".to_string()),
+        DnsName::new("")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"a\u{263A}\"".to_string()),
+        DnsName::new("a\u{263A}")
+    );
+    assert_eq!("a", DnsName::new("a").unwrap().inner());
+    assert_eq!("b", DnsName::new("b").unwrap().inner());
+    assert_eq!("z", DnsName::new("z").unwrap().inner());
+    assert_eq!("abc", DnsName::new("ABC").unwrap().inner());
+    assert_eq!("b", DnsName::new("B").unwrap().inner());
+    assert_eq!("z", DnsName::new("Z").unwrap().inner());
+    assert_eq!(
+        "abcdefghijklmnopqrstuvwxyz",
+        DnsName::new("abcdefghijklmnopqrstuvwxyz").unwrap().inner()
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"1\"".to_string()),
+        DnsName::new("1")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"1a\"".to_string()),
+        DnsName::new("1a")
+    );
+    assert_eq!("a0", DnsName::new("a0").unwrap().inner());
+    assert_eq!("a1", DnsName::new("a1").unwrap().inner());
+    assert_eq!("a9", DnsName::new("a9").unwrap().inner());
+    assert_eq!("a9876543210", DnsName::new("a9876543210").unwrap().inner());
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"-\"".to_string()),
+        DnsName::new("-")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"a-\"".to_string()),
+        DnsName::new("a-")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"-a\"".to_string()),
+        DnsName::new("-a")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"a-.b\"".to_string()),
+        DnsName::new("a-.b")
+    );
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"a.-b\"".to_string()),
+        DnsName::new("a.-b")
+    );
+    assert_eq!("a-b", DnsName::new("a-b").unwrap().inner());
+    assert_eq!("a-0", DnsName::new("a-0").unwrap().inner());
+    assert_eq!("a---b", DnsName::new("a---b").unwrap().inner());
+    assert_eq!(
+        "xyz321-654abc",
+        DnsName::new("Xyz321-654abC").unwrap().inner()
+    );
+    // Display
+    assert_eq!(
+        "example.com",
+        format!("{}", DnsName::new("example.com").unwrap())
+    );
+}
+
+#[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum DnsRecord {
+    A(DnsName, std::net::Ipv4Addr),
+    AAAA(DnsName, std::net::Ipv6Addr),
+    CNAME(DnsName, DnsName),
+}
+impl DnsRecord {
+    /// # Errors
+    /// Returns an error when `name` is not a valid DNS name
+    /// or `ipv4_addr` is not a valid IPv4 address.
+    pub fn new_a(name: &str, ipv4_addr: &str) -> Result<Self, String> {
+        let dns_name = DnsName::new(name)?;
+        let ip_addr: IpAddr = ipv4_addr
+            .parse()
+            .map_err(|e| format!("failed parsing {:?} as an IP address: {}", ipv4_addr, e))?;
+        match ip_addr {
+            IpAddr::V4(addr) => Ok(Self::A(dns_name, addr)),
+            IpAddr::V6(addr) => Err(format!(
+                "cannot create an A record with ipv6 address {:?}",
+                addr
+            )),
+        }
+    }
+
+    /// # Errors
+    /// Returns an error when `name` is not a valid DNS name
+    /// or `ipv6_addr` is not a valid IPv6 address.
+    pub fn new_aaaa(name: &str, ipv6_addr: &str) -> Result<Self, String> {
+        let dns_name = DnsName::new(name)?;
+        let ip_addr: IpAddr = ipv6_addr
+            .parse()
+            .map_err(|e| format!("failed parsing {:?} as an IP address: {}", ipv6_addr, e))?;
+        match ip_addr {
+            IpAddr::V4(addr) => Err(format!(
+                "cannot create an AAAA record with ipv4 address {:?}",
+                addr
+            )),
+            IpAddr::V6(addr) => Ok(Self::AAAA(dns_name, addr)),
+        }
+    }
+
+    /// # Errors
+    /// Returns an error when `name` or `target` are not both valid DNS names.
+    pub fn new_cname(name: &str, target: &str) -> Result<Self, String> {
+        let dns_name = DnsName::new(name)?;
+        let dns_name_target = DnsName::new(target)?;
+        Ok(Self::CNAME(dns_name, dns_name_target))
+    }
+}
+impl core::fmt::Debug for DnsRecord {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+        match self {
+            DnsRecord::A(name, addr) => write!(f, "DnsRecord::A({},{})", name, addr),
+            DnsRecord::AAAA(name, addr) => write!(f, "DnsRecord::AAAA({},{})", name, addr),
+            DnsRecord::CNAME(name, target) => write!(f, "DnsRecord::CNAME({},{})", name, target),
+        }
+    }
+}
+#[cfg(test)]
+#[test]
+fn test_dns_record() {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+    // Constructors
+    assert_eq!(
+        DnsRecord::A(DnsName::new("a.b").unwrap(), Ipv4Addr::new(1, 2, 3, 4)),
+        DnsRecord::new_a("a.b", "1.2.3.4").unwrap()
+    );
+    assert_eq!(
+        DnsRecord::AAAA(
+            DnsName::new("a.b").unwrap(),
+            Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0)
+        ),
+        DnsRecord::new_aaaa("a.b", "2001:db8::").unwrap()
+    );
+    assert_eq!(
+        DnsRecord::CNAME(DnsName::new("a.b").unwrap(), DnsName::new("c.d").unwrap()),
+        DnsRecord::new_cname("a.b", "c.d").unwrap()
+    );
+    // Debug
+    assert_eq!(
+        "DnsRecord::A(a.b,1.2.3.4)",
+        format!(
+            "{:?}",
+            DnsRecord::A(DnsName::new("a.b").unwrap(), Ipv4Addr::new(1, 2, 3, 4))
+        )
+    );
+    assert_eq!(
+        "DnsRecord::AAAA(a.b,2001:db8::)",
+        format!(
+            "{:?}",
+            DnsRecord::AAAA(
+                DnsName::new("a.b").unwrap(),
+                Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0)
+            )
+        )
+    );
+    assert_eq!(
+        "DnsRecord::CNAME(a.b,c.d)",
+        format!(
+            "{:?}",
+            DnsRecord::CNAME(DnsName::new("a.b").unwrap(), DnsName::new("c.d").unwrap())
+        )
+    );
 }
