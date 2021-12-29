@@ -34,8 +34,8 @@ use std::fmt::Formatter;
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DnsName(String);
 impl DnsName {
-    fn err(value: impl AsRef<str>) -> Result<Self, String> {
-        Err(format!("not a valid DNS name: {:?}", value.as_ref()))
+    fn err(value: &str) -> Result<Self, String> {
+        Err(format!("not a valid DNS name: {:?}", value))
     }
 
     fn is_letter(b: u8) -> bool {
@@ -67,15 +67,10 @@ impl DnsName {
         value.split(".").all(Self::is_valid_label)
     }
 
-    pub fn new(value: impl AsRef<str>) -> Result<Self, String> {
+    pub fn new(value: &str) -> Result<Self, String> {
         // Name syntax: https://datatracker.ietf.org/doc/html/rfc1035#page-8
-        let mut trimmed = value.as_ref();
-        trimmed = if trimmed.ends_with(".") {
-            &trimmed[..(trimmed.len() - 1)]
-        } else {
-            trimmed
-        };
-        if !Self::is_valid_name(trimmed.as_ref()) {
+        let trimmed = value.strip_suffix(".").unwrap_or(value);
+        if !Self::is_valid_name(trimmed) {
             return Self::err(value);
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
