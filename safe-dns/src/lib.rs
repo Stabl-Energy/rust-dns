@@ -137,7 +137,7 @@ impl DnsName {
     /// Returns an error when `value` is not a valid DNS name.
     pub fn new(value: &str) -> Result<Self, String> {
         let trimmed = value.strip_suffix('.').unwrap_or(value);
-        if !Self::is_valid_name(trimmed) {
+        if trimmed.len() > 255 || !Self::is_valid_name(trimmed) {
             return Self::err(value);
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
@@ -163,33 +163,19 @@ impl std::convert::TryFrom<&'static str> for DnsName {
 #[cfg(test)]
 #[test]
 fn test_dns_name() {
+    // Err
+    assert_eq!(
+        <Result<DnsName, String>>::Err("not a valid DNS name: \"abc!\"".to_string()),
+        DnsName::new("abc!")
+    );
     // Separators.
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \".\"".to_string()),
-        DnsName::new(".")
-    );
+    DnsName::new(".").unwrap_err();
     assert_eq!("a", DnsName::new("a.").unwrap().inner());
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"a..\"".to_string()),
-        DnsName::new("a..")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \".a\"".to_string()),
-        DnsName::new(".a")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"b..a\"".to_string()),
-        DnsName::new("b..a")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \".b.a\"".to_string()),
-        DnsName::new(".b.a")
-    );
+    DnsName::new("a..").unwrap_err();
+    DnsName::new(".a").unwrap_err();
+    DnsName::new("b..a").unwrap_err();
+    DnsName::new(".b.a").unwrap_err();
     // Labels.
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"\"".to_string()),
-        DnsName::new("")
-    );
     assert_eq!(
         <Result<DnsName, String>>::Err("not a valid DNS name: \"a\u{263A}\"".to_string()),
         DnsName::new("a\u{263A}")
@@ -204,38 +190,17 @@ fn test_dns_name() {
         "abcdefghijklmnopqrstuvwxyz",
         DnsName::new("abcdefghijklmnopqrstuvwxyz").unwrap().inner()
     );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"1\"".to_string()),
-        DnsName::new("1")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"1a\"".to_string()),
-        DnsName::new("1a")
-    );
+    DnsName::new("1").unwrap_err();
+    DnsName::new("1a").unwrap_err();
     assert_eq!("a0", DnsName::new("a0").unwrap().inner());
     assert_eq!("a1", DnsName::new("a1").unwrap().inner());
     assert_eq!("a9", DnsName::new("a9").unwrap().inner());
     assert_eq!("a9876543210", DnsName::new("a9876543210").unwrap().inner());
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"-\"".to_string()),
-        DnsName::new("-")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"a-\"".to_string()),
-        DnsName::new("a-")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"-a\"".to_string()),
-        DnsName::new("-a")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"a-.b\"".to_string()),
-        DnsName::new("a-.b")
-    );
-    assert_eq!(
-        <Result<DnsName, String>>::Err("not a valid DNS name: \"a.-b\"".to_string()),
-        DnsName::new("a.-b")
-    );
+    DnsName::new("-").unwrap_err();
+    DnsName::new("a-").unwrap_err();
+    DnsName::new("-a").unwrap_err();
+    DnsName::new("a-.b").unwrap_err();
+    DnsName::new("a.-b").unwrap_err();
     assert_eq!("a-b", DnsName::new("a-b").unwrap().inner());
     assert_eq!("a-0", DnsName::new("a-0").unwrap().inner());
     assert_eq!("a---b", DnsName::new("a---b").unwrap().inner());
@@ -243,6 +208,27 @@ fn test_dns_name() {
         "xyz321-654abc",
         DnsName::new("Xyz321-654abC").unwrap().inner()
     );
+    // Length
+    DnsName::new("").unwrap_err();
+    DnsName::new("a").unwrap();
+    DnsName::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap();
+    DnsName::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap_err();
+    DnsName::new(concat!(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ))
+    .unwrap();
+    DnsName::new(concat!(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.a"
+    ))
+    .unwrap_err();
+    // inner
+    assert_eq!("abc", DnsName::new("abc").unwrap().inner());
     // Display
     assert_eq!(
         "example.com",
