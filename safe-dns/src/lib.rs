@@ -41,8 +41,11 @@
 #![forbid(unsafe_code)]
 
 use core::fmt::Display;
+use fixed_buffer::FixedBuf;
 use std::fmt::Formatter;
+use std::io::ErrorKind;
 use std::net::IpAddr;
+use std::time::Duration;
 
 /// A name that conforms to the conventions in
 /// [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1):
@@ -350,4 +353,62 @@ fn test_dns_record() {
             DnsRecord::CNAME(DnsName::new("a.b").unwrap(), DnsName::new("c.d").unwrap())
         )
     );
+}
+
+#[derive(Debug, PartialEq)]
+enum ProcessError {
+    Truncated,
+    NotFound,
+}
+
+fn process_datagram(
+    _records: &[DnsRecord],
+    _in_bytes: &[u8],
+    _out_bytes: &mut FixedBuf<65507>,
+) -> Result<(), String> {
+    todo!()
+}
+
+pub fn serve_udp(
+    sock: std::net::UdpSocket,
+    records: &[DnsRecord],
+    permit: permit::Permit,
+) -> Result<(), String> {
+    sock.set_read_timeout(Some(Duration::from_millis(500)))
+        .map_err(|e| format!("error setting socket read timeout: {}", e))?;
+    let local_addr = sock
+        .local_addr()
+        .map_err(|e| format!("error getting socket local address: {}", e))?;
+    // Buffer is the maximum size of an IPv4 UDP payload.  This does not support IPv6 jumbograms.
+    let mut read_buf = [0u8; 65507];
+    let mut write_buf: FixedBuf<65507> = FixedBuf::new();
+    while !permit.is_revoked() {
+        let (in_bytes, addr) = match sock.recv_from(&mut read_buf) {
+            Ok((len, _)) if len > read_buf.len() => continue, // Discard jumbogram.
+            Ok((len, addr)) => (&read_buf[0..len], addr),
+            Err(e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
+                continue
+            }
+            Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
+        };
+        write_buf.clear();
+        if process_datagram(records, in_bytes, &mut write_buf).is_err() {
+            continue;
+        }
+        if write_buf.is_empty() {
+            unreachable!();
+        }
+        let sent_len = sock
+            .send_to(write_buf.readable(), &addr)
+            .map_err(|e| format!("error sending response to {:?}: {}", addr, e))?;
+        if sent_len != write_buf.len() {
+            return Err(format!(
+                "sent only {} bytes of {} byte response to {:?}",
+                sent_len,
+                write_buf.len(),
+                addr
+            ));
+        }
+    }
+    Ok(())
 }

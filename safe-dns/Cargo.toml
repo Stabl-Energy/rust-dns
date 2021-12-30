@@ -11,5 +11,7 @@ repository = "https://gitlab.com/leonhard-llc/ops"
 version = "0.1.0"
 
 [dependencies]
+fixed-buffer = "^0.3.0"
+permit = "^0.1.4"
 
 [dev-dependencies]
