@@ -8,6 +8,14 @@
 A threaded DNS server library.
 
 ## Use Cases
+- Make your API server its own DNS server.
+  This eliminates the DNS server as a separate point of failure.
+- Keep your DNS config in code, next to your server code.
+  Include it in code reviews and integration tests.
+- DNS-based
+  [domain validation for free ACME certificates](https://letsencrypt.org/how-it-works/).
+  This is useful for servers that don't listen on port 80.
+  Servers on port 80 can use HTTP for domain validation and don't need to use this.
 
 ## Features
 - Depends only on `std`
@@ -16,32 +24,19 @@ A threaded DNS server library.
 
 ## Limitations
 
-## Alternatives
+## Example
 
 ## Related Crates
 
-## Example
-
 ## Cargo Geiger Safety Report
-```
 
-Metric output format: x/y
-    x = unsafe code used by the build
-    y = total unsafe code found in the crate
-
-Symbols: 
-    🔒  = No `unsafe` usage found, declares #![forbid(unsafe_code)]
-    ❓  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
-    ☢️  = `unsafe` usage found
-
-Functions  Expressions  Impls  Traits  Methods  Dependency
-
-0/0        0/0          0/0    0/0     0/0      🔒  safe-dns 0.1.0
-
-0/0        0/0          0/0    0/0     0/0    
-
-```
 ## Changelog
 - v0.1.0 - Initial version
+
+# To Do
+- Ergonomic constructors that take `OsStr`, for using environment variables
+
+## Alternatives
+
 
 License: Apache-2.0
