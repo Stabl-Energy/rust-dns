@@ -42,10 +42,16 @@
 
 use core::fmt::Display;
 use fixed_buffer::FixedBuf;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt::Formatter;
 use std::io::ErrorKind;
+use std::iter::FromIterator;
 use std::net::IpAddr;
 use std::time::Duration;
+
+const INTERNET_CLASS: u16 = 1;
+const ANY_CLASS: u16 = 255;
 
 fn read_exact<const N: usize, const M: usize>(
     buf: &mut FixedBuf<N>,
@@ -58,6 +64,13 @@ fn read_exact<const N: usize, const M: usize>(
 
 fn read_byte<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, ProcessError> {
     buf.try_read_byte().ok_or(ProcessError::Truncated)
+}
+
+fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), ProcessError> {
+    let bytes: [u8; 2] = value.to_be_bytes();
+    out.write_bytes(&bytes)
+        .map_err(|_| ProcessError::ResponseBufferFull)?;
+    Ok(())
 }
 
 /// A name that conforms to the conventions in
@@ -179,6 +192,22 @@ impl DnsName {
             value.push_str(label);
         }
         Err(ProcessError::TooManyLabels)
+    }
+
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), ProcessError> {
+        for label in self.0.split('.') {
+            if label.len() > 63 {
+                unreachable!();
+            }
+            let len = u8::try_from(label.len()).unwrap();
+            out.write_bytes(&[len])
+                .map_err(|_| ProcessError::ResponseBufferFull)?;
+            out.write_bytes(label.as_bytes())
+                .map_err(|_| ProcessError::ResponseBufferFull)?;
+        }
+        out.write_bytes(&[0])
+            .map_err(|_| ProcessError::ResponseBufferFull)?;
+        Ok(())
     }
 
     #[must_use]
@@ -322,6 +351,22 @@ impl DnsRecord {
         let dns_name_target = DnsName::new(target)?;
         Ok(Self::CNAME(dns_name, dns_name_target))
     }
+
+    pub fn name(&self) -> &DnsName {
+        match self {
+            DnsRecord::A(dns_name, _)
+            | DnsRecord::AAAA(dns_name, _)
+            | DnsRecord::CNAME(dns_name, _) => dns_name,
+        }
+    }
+
+    pub fn typ(&self) -> Type {
+        match self {
+            DnsRecord::A(_, _) => Type::A,
+            DnsRecord::AAAA(_, _) => Type::AAAA,
+            DnsRecord::CNAME(_, _) => Type::CNAME,
+        }
+    }
 }
 impl core::fmt::Debug for DnsRecord {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -384,12 +429,20 @@ pub enum ProcessError {
     EmptyName,
     InvalidClass,
     InvalidLabel,
+    InvalidOpCode,
     NameTooLong,
+    NoQuestion,
+    NotARequest,
     NotFound,
+    ResponseBufferFull,
     QueryHasAdditionalRecords,
     QueryHasAnswer,
     QueryHasNameServer,
+    TooManyAdditional,
+    TooManyAnswers,
     TooManyLabels,
+    TooManyNameServers,
+    TooManyQuestions,
     Truncated,
 }
 
@@ -407,7 +460,7 @@ pub enum ProcessError {
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.3>
 #[derive(Debug, PartialEq)]
-enum Type {
+pub enum Type {
     /// IPv4 address
     A,
     /// IPv6 address
@@ -558,7 +611,7 @@ struct Message {
     /// > or a response (`1`).
     ///
     /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
-    query: bool,
+    is_response: bool,
     op_code: OpCode,
     /// > `AA` Authoritative Answer - this bit is valid in responses, and specifies that the
     /// > responding name server is an authority for the domain name in question section.
@@ -587,13 +640,16 @@ struct Message {
     recursion_available: bool,
     response_code: ResponseCode,
     questions: Vec<Question>,
+    answers: Vec<DnsRecord>,
+    name_servers: Vec<DnsRecord>,
+    additional: Vec<DnsRecord>,
 }
 impl Message {
-    pub fn parse(mut buf: FixedBuf<512>) -> Result<Self, ProcessError> {
+    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, ProcessError> {
         // Header
         let bytes: [u8; 12] = read_exact(&mut buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
-        let query = (bytes[2] >> 7) == 1;
+        let is_response = (bytes[2] >> 7) == 1;
         let op_code = OpCode::new((bytes[2] >> 3) & 0xF);
         let authoritative_answer = ((bytes[2] >> 2) & 1) == 1;
         let truncated = ((bytes[2] >> 1) & 1) == 1;
@@ -620,16 +676,14 @@ impl Message {
             let bytes: [u8; 4] = read_exact(&mut buf)?;
             let typ = Type::new(u16::from_be_bytes([bytes[0], bytes[1]]));
             let class = u16::from_be_bytes([bytes[2], bytes[3]]);
-            const INTERNET: u16 = 1;
-            const ANY: u16 = 255;
-            if class != INTERNET && class != ANY {
+            if class != INTERNET_CLASS && class != ANY_CLASS {
                 return Err(ProcessError::InvalidClass);
             }
             questions.push(Question { name, typ });
         }
         Ok(Self {
             id,
-            query,
+            is_response,
             op_code,
             authoritative_answer,
             truncated,
@@ -637,17 +691,90 @@ impl Message {
             recursion_available,
             response_code,
             questions,
+            answers: Vec::new(),
+            name_servers: Vec::new(),
+            additional: Vec::new(),
         })
+    }
+
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), ProcessError> {
+        let bytes: [u8; 2] = self.id.to_be_bytes();
+        out.write_bytes(&bytes)
+            .map_err(|_| ProcessError::ResponseBufferFull)?;
+        let b = ((self.is_response as u8) << 7)
+            & (self.op_code.num() << 3)
+            & ((self.authoritative_answer as u8) << 2)
+            & ((self.truncated as u8) << 1)
+            & (self.recursion_desired as u8);
+        out.write_bytes(&[b])
+            .map_err(|_| ProcessError::ResponseBufferFull)?;
+        let b = ((self.recursion_available as u8) << 7) & self.response_code.num();
+        out.write_bytes(&[b])
+            .map_err(|_| ProcessError::ResponseBufferFull)?;
+        for count in [
+            u16::try_from(self.questions.len()).map_err(|_| ProcessError::TooManyQuestions)?,
+            u16::try_from(self.answers.len()).map_err(|_| ProcessError::TooManyAnswers)?,
+            u16::try_from(self.name_servers.len()).map_err(|_| ProcessError::TooManyNameServers)?,
+            u16::try_from(self.additional.len()).map_err(|_| ProcessError::TooManyAdditional)?,
+        ] {
+            write_u16_be(out, count)?;
+        }
+        if !self.questions.is_empty() {
+            unimplemented!();
+        }
+        for record in self
+            .answers
+            .iter()
+            .chain(self.name_servers.iter())
+            .chain(self.additional.iter())
+        {
+            record.name().write(out)?;
+            write_u16_be(out, record.typ().num())?;
+            write_u16_be(out, INTERNET_CLASS)?;
+            write_u16_be(out, 300_u16)?;
+            // write_u16_be(out, rdlen)?;
+            // write rdata
+            todo!();
+        }
+        Ok(())
     }
 }
 
 fn process_datagram(
-    _records: &[DnsRecord],
+    name_to_record: &HashMap<&DnsName, &DnsRecord>,
     bytes: FixedBuf<512>,
     out: &mut FixedBuf<512>,
-) -> Result<(), String> {
-    let message = Message::parse(bytes);
-    out.write_bytes(&[0, 1, 2])?;
+) -> Result<(), ProcessError> {
+    let request = Message::parse(bytes)?;
+    if request.is_response {
+        return Err(ProcessError::NotARequest);
+    }
+    if request.op_code != OpCode::Query {
+        return Err(ProcessError::InvalidOpCode);
+    }
+    // NOTE: We only answer the first question.
+    let question = request.questions.first().ok_or(ProcessError::NoQuestion)?;
+    let record = *name_to_record
+        .get(&question.name)
+        .ok_or(ProcessError::NotFound)?;
+    if record.typ() != question.typ {
+        return Err(ProcessError::NotFound);
+    }
+    let response = Message {
+        id: request.id,
+        is_response: true,
+        op_code: request.op_code,
+        authoritative_answer: true,
+        truncated: false,
+        recursion_desired: request.recursion_desired,
+        recursion_available: false,
+        response_code: ResponseCode::NoError,
+        questions: Vec::new(),
+        answers: vec![record.clone()],
+        name_servers: Vec::new(),
+        additional: Vec::new(),
+    };
+    response.write(out)?;
     Ok(())
 }
 
@@ -663,11 +790,13 @@ pub fn serve_udp(
     let local_addr = sock
         .local_addr()
         .map_err(|e| format!("error getting socket local address: {}", e))?;
-    // > Messages carried by UDP are restricted to 512 bytes (not counting the IP
-    // > or UDP headers).  Longer messages are truncated and the TC bit is set in
-    // > the header.
-    // https://datatracker.ietf.org/doc/html/rfc1035#section-4.2.1
+    let name_to_record: HashMap<&DnsName, &DnsRecord> =
+        HashMap::from_iter(records.iter().map(|x| (x.name(), x)));
     while !permit.is_revoked() {
+        // > Messages carried by UDP are restricted to 512 bytes (not counting the IP
+        // > or UDP headers).  Longer messages are truncated and the TC bit is set in
+        // > the header.
+        // https://datatracker.ietf.org/doc/html/rfc1035#section-4.2.1
         let mut buf: FixedBuf<512> = FixedBuf::new();
         let addr = match sock.recv_from(buf.writable()) {
             // Can this happen?  The docs are not clear.
@@ -682,7 +811,7 @@ pub fn serve_udp(
             Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
         };
         let mut out: FixedBuf<512> = FixedBuf::new();
-        if process_datagram(records, buf, &mut out).is_err() {
+        if process_datagram(&name_to_record, buf, &mut out).is_err() {
             continue;
         }
         if out.is_empty() {
