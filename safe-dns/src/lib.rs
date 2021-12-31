@@ -47,6 +47,19 @@ use std::io::ErrorKind;
 use std::net::IpAddr;
 use std::time::Duration;
 
+fn read_exact<const N: usize, const M: usize>(
+    buf: &mut FixedBuf<N>,
+) -> Result<[u8; M], ProcessError> {
+    let mut result = [0_u8; M];
+    buf.try_read_exact(&mut result)
+        .ok_or(ProcessError::Truncated)?;
+    Ok(result)
+}
+
+fn read_byte<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, ProcessError> {
+    buf.try_read_byte().ok_or(ProcessError::Truncated)
+}
+
 /// A name that conforms to the conventions in
 /// [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1):
 ///
@@ -100,10 +113,6 @@ use std::time::Duration;
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DnsName(String);
 impl DnsName {
-    fn err(value: &str) -> Result<Self, String> {
-        Err(format!("not a valid DNS name: {:?}", value))
-    }
-
     fn is_letter(b: u8) -> bool {
         (b'a'..=b'z').contains(&b) || (b'A'..=b'Z').contains(&b)
     }
@@ -138,9 +147,38 @@ impl DnsName {
     pub fn new(value: &str) -> Result<Self, String> {
         let trimmed = value.strip_suffix('.').unwrap_or(value);
         if trimmed.len() > 255 || !Self::is_valid_name(trimmed) {
-            return Self::err(value);
+            return Err(format!("not a valid DNS name: {:?}", value));
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
+    }
+
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<DnsName, ProcessError> {
+        let mut value = String::new();
+        for _ in 0..63 {
+            let len = read_byte(buf)? as usize;
+            if len == 0 {
+                if value.is_empty() {
+                    return Err(ProcessError::EmptyName);
+                }
+                if value.len() > 255 {
+                    return Err(ProcessError::NameTooLong);
+                }
+                return Ok(Self(value));
+            }
+            if buf.readable().len() < len {
+                return Err(ProcessError::Truncated);
+            }
+            let label_bytes = &buf.readable()[0..len];
+            let label = std::str::from_utf8(label_bytes).map_err(|_| ProcessError::InvalidLabel)?;
+            if !Self::is_valid_label(label) {
+                return Err(ProcessError::InvalidLabel);
+            }
+            if !value.is_empty() {
+                value.push('.');
+            }
+            value.push_str(label);
+        }
+        Err(ProcessError::TooManyLabels)
     }
 
     #[must_use]
@@ -342,17 +380,275 @@ fn test_dns_record() {
 }
 
 #[derive(Debug, PartialEq)]
-enum ProcessError {
-    Truncated,
+pub enum ProcessError {
+    EmptyName,
+    InvalidClass,
+    InvalidLabel,
+    NameTooLong,
     NotFound,
+    QueryHasAdditionalRecords,
+    QueryHasAnswer,
+    QueryHasNameServer,
+    TooManyLabels,
+    Truncated,
+}
+
+/// > TYPE fields are used in resource records.  Note that these types are a subset of QTYPEs.
+///
+/// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.2>
+///
+/// > A record type is defined to store a host's IPv6 address.  A host that has more than one
+/// > IPv6 address must have more than one such record.
+///
+/// <https://datatracker.ietf.org/doc/html/rfc3596#section-2>
+///
+/// > QTYPE fields appear in the question part of a query.  QTYPES are a superset of TYPEs, hence
+/// > all TYPEs are valid QTYPEs.
+///
+/// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.3>
+#[derive(Debug, PartialEq)]
+enum Type {
+    /// IPv4 address
+    A,
+    /// IPv6 address
+    AAAA,
+    /// The canonical name for an alias
+    CNAME,
+    /// Mail exchange
+    MX,
+    /// Authoritative name server
+    NS,
+    /// Domain name pointer
+    PTR,
+    /// Marks the start of a zone of authority
+    SOA,
+    /// Text string
+    TXT,
+    Unknown(u16),
+}
+impl Type {
+    pub fn new(value: u16) -> Self {
+        match value {
+            1 => Type::A,
+            28 => Type::AAAA,
+            5 => Type::CNAME,
+            15 => Type::MX,
+            2 => Type::NS,
+            12 => Type::PTR,
+            6 => Type::SOA,
+            16 => Type::TXT,
+            other => Type::Unknown(other),
+        }
+    }
+    pub fn num(&self) -> u16 {
+        match self {
+            Type::A => 1,
+            Type::AAAA => 28,
+            Type::CNAME => 5,
+            Type::MX => 15,
+            Type::NS => 2,
+            Type::PTR => 12,
+            Type::SOA => 6,
+            Type::TXT => 16,
+            Type::Unknown(other) => *other,
+        }
+    }
+}
+
+/// > `OPCODE`  A four bit field that specifies kind of query in this message.
+/// >         This value is set by the originator of a query and copied into
+/// >         the response.  The values are:
+/// > - `0` a standard query (`QUERY`)
+/// > - `1` an inverse query (`IQUERY`)
+/// > - `2` a server status request (`STATUS`)
+/// > - `3-15` reserved for future use
+///
+/// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+#[derive(Debug, PartialEq)]
+enum OpCode {
+    Query,
+    InverseQuery,
+    Status,
+    Reserved(u8),
+}
+impl OpCode {
+    pub fn new(value: u8) -> Self {
+        match value {
+            0 => OpCode::Query,
+            1 => OpCode::InverseQuery,
+            2 => OpCode::Status,
+            other => OpCode::Reserved(other),
+        }
+    }
+    pub fn num(&self) -> u8 {
+        match self {
+            OpCode::Query => 0,
+            OpCode::InverseQuery => 1,
+            OpCode::Status => 2,
+            OpCode::Reserved(other) => *other,
+        }
+    }
+}
+
+/// > `RCODE` Response code - this 4 bit field is set as part of responses.  The values have the
+/// > following interpretation:
+/// > - `0` No error condition
+/// > - `1` Format error - The name server was unable to interpret the query.
+/// > - `2` Server failure - The name server was unable to process this query due to a problem with
+/// >   the name server.
+/// > - `3` Name Error - Meaningful only for responses from an authoritative name server, this code
+/// >   signifies that the domain name referenced in the query does not exist.
+/// > - `4` Not Implemented - The name server does not support the requested kind of query.
+/// > - `5` Refused - The name server refuses to perform the specified operation for policy reasons.
+/// >   For example, a name server may not wish to provide the information to the particular
+/// >   requester, or a name server may not wish to perform a particular operation (e.g., zone
+/// >    transfer) for particular data.
+/// > - `6-15` Reserved for future use.
+///
+/// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+#[derive(Debug, PartialEq)]
+enum ResponseCode {
+    NoError,
+    FormatError,
+    ServerFailure,
+    NameError,
+    NotImplemented,
+    Refused,
+    Reserved(u8),
+}
+impl ResponseCode {
+    pub fn new(value: u8) -> Self {
+        match value {
+            0 => ResponseCode::NoError,
+            1 => ResponseCode::FormatError,
+            2 => ResponseCode::ServerFailure,
+            3 => ResponseCode::NameError,
+            4 => ResponseCode::NotImplemented,
+            5 => ResponseCode::Refused,
+            other => ResponseCode::Reserved(other),
+        }
+    }
+    pub fn num(&self) -> u8 {
+        match self {
+            ResponseCode::NoError => 0,
+            ResponseCode::FormatError => 1,
+            ResponseCode::ServerFailure => 2,
+            ResponseCode::NameError => 3,
+            ResponseCode::NotImplemented => 4,
+            ResponseCode::Refused => 5,
+            ResponseCode::Reserved(other) => *other,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Question {
+    name: DnsName,
+    typ: Type,
+}
+
+struct Message {
+    /// > `ID` A 16 bit identifier assigned by the program that generates any kind of query.  This
+    /// > identifier is copied the corresponding reply and can be used by the requester to match up
+    /// > replies to outstanding queries.
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    id: u16,
+    /// > `QR` A one bit field that specifies whether this message is a query (`0`),
+    /// > or a response (`1`).
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    query: bool,
+    op_code: OpCode,
+    /// > `AA` Authoritative Answer - this bit is valid in responses, and specifies that the
+    /// > responding name server is an authority for the domain name in question section.
+    /// >
+    /// > Note that the contents of the answer section may have multiple owner names because of
+    /// > aliases.  The AA bit corresponds to the name which matches the query name, or the first
+    /// > owner name in the answer section.
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    authoritative_answer: bool,
+    /// > `TC` TrunCation - specifies that this message was truncated due to length greater than
+    /// > that permitted on the transmission channel.
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    truncated: bool,
+    /// > `RD` Recursion Desired - this bit may be set in a query and is copied into the response.
+    /// > If RD is set, it directs the name server to pursue the query recursively.  Recursive query
+    /// > support is optional.
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    recursion_desired: bool,
+    /// > `RA` Recursion Available - this be is set or cleared in a response, and denotes whether
+    /// > recursive query support is available in the name server.
+    ///
+    /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
+    recursion_available: bool,
+    response_code: ResponseCode,
+    questions: Vec<Question>,
+}
+impl Message {
+    pub fn parse(mut buf: FixedBuf<512>) -> Result<Self, ProcessError> {
+        // Header
+        let bytes: [u8; 12] = read_exact(&mut buf)?;
+        let id = u16::from_be_bytes([bytes[0], bytes[1]]);
+        let query = (bytes[2] >> 7) == 1;
+        let op_code = OpCode::new((bytes[2] >> 3) & 0xF);
+        let authoritative_answer = ((bytes[2] >> 2) & 1) == 1;
+        let truncated = ((bytes[2] >> 1) & 1) == 1;
+        let recursion_desired = (bytes[2] & 1) == 1;
+        let recursion_available = (bytes[3] >> 7) == 1;
+        let response_code = ResponseCode::new(bytes[3] & 0xF);
+        let question_count = u16::from_be_bytes([bytes[4], bytes[5]]);
+        let answer_count = u16::from_be_bytes([bytes[6], bytes[7]]);
+        let name_server_count = u16::from_be_bytes([bytes[8], bytes[9]]);
+        let additional_count = u16::from_be_bytes([bytes[10], bytes[11]]);
+        if answer_count != 0 {
+            return Err(ProcessError::QueryHasAnswer);
+        }
+        if name_server_count != 0 {
+            return Err(ProcessError::QueryHasNameServer);
+        }
+        if additional_count != 0 {
+            return Err(ProcessError::QueryHasAdditionalRecords);
+        }
+        // Questions
+        let mut questions = Vec::with_capacity(question_count as usize);
+        for _ in 0..question_count {
+            let name = DnsName::read(&mut buf)?;
+            let bytes: [u8; 4] = read_exact(&mut buf)?;
+            let typ = Type::new(u16::from_be_bytes([bytes[0], bytes[1]]));
+            let class = u16::from_be_bytes([bytes[2], bytes[3]]);
+            const INTERNET: u16 = 1;
+            const ANY: u16 = 255;
+            if class != INTERNET && class != ANY {
+                return Err(ProcessError::InvalidClass);
+            }
+            questions.push(Question { name, typ });
+        }
+        Ok(Self {
+            id,
+            query,
+            op_code,
+            authoritative_answer,
+            truncated,
+            recursion_desired,
+            recursion_available,
+            response_code,
+            questions,
+        })
+    }
 }
 
 fn process_datagram(
     _records: &[DnsRecord],
-    _in_bytes: &[u8],
-    _out_bytes: &mut FixedBuf<512>,
+    bytes: FixedBuf<512>,
+    out: &mut FixedBuf<512>,
 ) -> Result<(), String> {
-    todo!()
+    let message = Message::parse(bytes);
+    out.write_bytes(&[0, 1, 2])?;
+    Ok(())
 }
 
 /// # Errors
@@ -371,32 +667,35 @@ pub fn serve_udp(
     // > or UDP headers).  Longer messages are truncated and the TC bit is set in
     // > the header.
     // https://datatracker.ietf.org/doc/html/rfc1035#section-4.2.1
-    let mut read_buf = [0_u8; 512];
-    let mut write_buf: FixedBuf<512> = FixedBuf::new();
     while !permit.is_revoked() {
-        let (in_bytes, addr) = match sock.recv_from(&mut read_buf) {
-            Ok((len, _)) if len > read_buf.len() => continue, // Payload is too long.  Discard.
-            Ok((len, addr)) => (&read_buf[0..len], addr),
+        let mut buf: FixedBuf<512> = FixedBuf::new();
+        let addr = match sock.recv_from(buf.writable()) {
+            // Can this happen?  The docs are not clear.
+            Ok((len, _)) if len > buf.writable().len() => continue,
+            Ok((len, addr)) => {
+                buf.wrote(len);
+                addr
+            }
             Err(e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
                 continue
             }
             Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
         };
-        write_buf.clear();
-        if process_datagram(records, in_bytes, &mut write_buf).is_err() {
+        let mut out: FixedBuf<512> = FixedBuf::new();
+        if process_datagram(records, buf, &mut out).is_err() {
             continue;
         }
-        if write_buf.is_empty() {
+        if out.is_empty() {
             unreachable!();
         }
         let sent_len = sock
-            .send_to(write_buf.readable(), &addr)
+            .send_to(out.readable(), &addr)
             .map_err(|e| format!("error sending response to {:?}: {}", addr, e))?;
-        if sent_len != write_buf.len() {
+        if sent_len != out.len() {
             return Err(format!(
                 "sent only {} bytes of {} byte response to {:?}",
                 sent_len,
-                write_buf.len(),
+                out.len(),
                 addr
             ));
         }
