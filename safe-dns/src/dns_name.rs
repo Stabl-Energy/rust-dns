@@ -160,58 +160,98 @@ impl std::convert::TryFrom<&'static str> for DnsName {
 
 #[cfg(test)]
 #[test]
-// TODO: Split this up into separate tests.
-fn test_dns_name() {
-    // Err
+fn test_err() {
     assert_eq!(
         <Result<DnsName, String>>::Err("not a valid DNS name: \"abc!\"".to_string()),
         DnsName::new("abc!")
     );
-    // Separators.
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_label_separators() {
     DnsName::new(".").unwrap_err();
     assert_eq!("a", DnsName::new("a.").unwrap().inner());
     DnsName::new("a..").unwrap_err();
     DnsName::new(".a").unwrap_err();
     DnsName::new("b..a").unwrap_err();
     DnsName::new(".b.a").unwrap_err();
-    // Labels.
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_label_charset() {
+    const ALLOWED: &'static str =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.";
+    for c in ALLOWED.chars() {
+        let value = format!("a{}a", c);
+        DnsName::new(&value).expect(&value);
+    }
+    for b in 0..=255_u8 {
+        let c = char::from(b);
+        if !ALLOWED.contains(c) {
+            let value = format!("a{}a", c);
+            assert_eq!(
+                <Result<DnsName, String>>::Err(format!("not a valid DNS name: {:?}", value)),
+                DnsName::new(&value)
+            );
+        }
+    }
     assert_eq!(
         <Result<DnsName, String>>::Err("not a valid DNS name: \"a\u{263A}\"".to_string()),
         DnsName::new("a\u{263A}")
     );
-    assert_eq!("a", DnsName::new("a").unwrap().inner());
-    assert_eq!("b", DnsName::new("b").unwrap().inner());
-    assert_eq!("z", DnsName::new("z").unwrap().inner());
-    assert_eq!("abc", DnsName::new("ABC").unwrap().inner());
-    assert_eq!("b", DnsName::new("B").unwrap().inner());
-    assert_eq!("z", DnsName::new("Z").unwrap().inner());
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_label_normalizing() {
     assert_eq!(
         "abcdefghijklmnopqrstuvwxyz",
         DnsName::new("abcdefghijklmnopqrstuvwxyz").unwrap().inner()
     );
+    assert_eq!(
+        "abcdefghijklmnopqrstuvwxyz",
+        DnsName::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ").unwrap().inner()
+    );
+    assert_eq!("a0123456789", DnsName::new("a0123456789").unwrap().inner());
+    assert_eq!("a-b.c", DnsName::new("a-b.c").unwrap().inner());
+    assert_eq!(
+        "xyz321-654abc.def",
+        DnsName::new("Xyz321-654abC.DeF").unwrap().inner()
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_label_format() {
+    DnsName::new("a").unwrap();
     DnsName::new("1").unwrap_err();
     DnsName::new("1a").unwrap_err();
-    assert_eq!("a0", DnsName::new("a0").unwrap().inner());
-    assert_eq!("a1", DnsName::new("a1").unwrap().inner());
-    assert_eq!("a9", DnsName::new("a9").unwrap().inner());
-    assert_eq!("a9876543210", DnsName::new("a9876543210").unwrap().inner());
+    DnsName::new("a1").unwrap();
+    DnsName::new("a9876543210").unwrap();
     DnsName::new("-").unwrap_err();
     DnsName::new("a-").unwrap_err();
     DnsName::new("-a").unwrap_err();
     DnsName::new("a-.b").unwrap_err();
     DnsName::new("a.-b").unwrap_err();
-    assert_eq!("a-b", DnsName::new("a-b").unwrap().inner());
-    assert_eq!("a-0", DnsName::new("a-0").unwrap().inner());
-    assert_eq!("a---b", DnsName::new("a---b").unwrap().inner());
-    assert_eq!(
-        "xyz321-654abc",
-        DnsName::new("Xyz321-654abC").unwrap().inner()
-    );
-    // Length
+    DnsName::new("a-b").unwrap();
+    DnsName::new("a-0").unwrap();
+    DnsName::new("a---b").unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_label_length() {
     DnsName::new("").unwrap_err();
     DnsName::new("a").unwrap();
     DnsName::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap();
     DnsName::new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap_err();
+}
+
+#[cfg(test)]
+#[test]
+fn test_new_name_length() {
     DnsName::new(concat!(
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
@@ -223,14 +263,52 @@ fn test_dns_name() {
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa."
+    ))
+    .unwrap();
+    DnsName::new(concat!(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.a"
     ))
     .unwrap_err();
-    // inner
+    DnsName::new(concat!(
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a",
+    ))
+    .unwrap();
+    DnsName::new(concat!(
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.a.",
+        "a.a.aa",
+    ))
+    .unwrap_err();
+}
+
+// TODO: Test read()
+// TODO: Test write()
+
+#[cfg(test)]
+#[test]
+fn test_inner() {
     assert_eq!("abc", DnsName::new("abc").unwrap().inner());
-    // Display
+}
+
+#[cfg(test)]
+#[test]
+fn test_display() {
     assert_eq!(
         "example.com",
         format!("{}", DnsName::new("example.com").unwrap())
     );
 }
+
+// TODO: Test TryFrom
