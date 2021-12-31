@@ -49,14 +49,14 @@ mod dns_response_code;
 mod dns_server;
 mod dns_type;
 
-pub use dns_message::Message;
+pub use dns_message::DnsMessage;
 pub use dns_name::DnsName;
-pub use dns_op_code::OpCode;
-pub use dns_question::Question;
+pub use dns_op_code::DnsOpCode;
+pub use dns_question::DnsQuestion;
 pub use dns_record::DnsRecord;
-pub use dns_response_code::ResponseCode;
+pub use dns_response_code::DnsResponseCode;
 pub use dns_server::{process_datagram, serve_udp};
-pub use dns_type::Type;
+pub use dns_type::DnsType;
 
 use fixed_buffer::FixedBuf;
 

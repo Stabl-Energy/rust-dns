@@ -1,9 +1,8 @@
-use crate::{DnsName, Type};
+use crate::{DnsName, DnsType};
 
-// TODO: Rename to DnsQuestion.
 // TODO: Moving parsing & generating code to here.
 #[derive(Debug, PartialEq)]
-pub struct Question {
+pub struct DnsQuestion {
     pub name: DnsName,
-    pub typ: Type,
+    pub typ: DnsType,
 }

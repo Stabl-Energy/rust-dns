@@ -14,9 +14,8 @@
 /// > - `6-15` Reserved for future use.
 ///
 /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
-// TODO: Rename to DnsResponseCode.
 #[derive(Debug, PartialEq)]
-pub enum ResponseCode {
+pub enum DnsResponseCode {
     NoError,
     FormatError,
     ServerFailure,
@@ -25,27 +24,27 @@ pub enum ResponseCode {
     Refused,
     Reserved(u8),
 }
-impl ResponseCode {
+impl DnsResponseCode {
     pub fn new(value: u8) -> Self {
         match value {
-            0 => ResponseCode::NoError,
-            1 => ResponseCode::FormatError,
-            2 => ResponseCode::ServerFailure,
-            3 => ResponseCode::NameError,
-            4 => ResponseCode::NotImplemented,
-            5 => ResponseCode::Refused,
-            other => ResponseCode::Reserved(other),
+            0 => DnsResponseCode::NoError,
+            1 => DnsResponseCode::FormatError,
+            2 => DnsResponseCode::ServerFailure,
+            3 => DnsResponseCode::NameError,
+            4 => DnsResponseCode::NotImplemented,
+            5 => DnsResponseCode::Refused,
+            other => DnsResponseCode::Reserved(other),
         }
     }
     pub fn num(&self) -> u8 {
         match self {
-            ResponseCode::NoError => 0,
-            ResponseCode::FormatError => 1,
-            ResponseCode::ServerFailure => 2,
-            ResponseCode::NameError => 3,
-            ResponseCode::NotImplemented => 4,
-            ResponseCode::Refused => 5,
-            ResponseCode::Reserved(other) => *other,
+            DnsResponseCode::NoError => 0,
+            DnsResponseCode::FormatError => 1,
+            DnsResponseCode::ServerFailure => 2,
+            DnsResponseCode::NameError => 3,
+            DnsResponseCode::NotImplemented => 4,
+            DnsResponseCode::Refused => 5,
+            DnsResponseCode::Reserved(other) => *other,
         }
     }
 }

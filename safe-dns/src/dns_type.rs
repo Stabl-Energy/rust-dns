@@ -11,9 +11,8 @@
 /// > all TYPEs are valid QTYPEs.
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.3>
-// TODO: Rename to DnsType.
 #[derive(Debug, PartialEq)]
-pub enum Type {
+pub enum DnsType {
     /// IPv4 address
     A,
     /// IPv6 address
@@ -32,31 +31,31 @@ pub enum Type {
     TXT,
     Unknown(u16),
 }
-impl Type {
+impl DnsType {
     pub fn new(value: u16) -> Self {
         match value {
-            1 => Type::A,
-            28 => Type::AAAA,
-            5 => Type::CNAME,
-            15 => Type::MX,
-            2 => Type::NS,
-            12 => Type::PTR,
-            6 => Type::SOA,
-            16 => Type::TXT,
-            other => Type::Unknown(other),
+            1 => DnsType::A,
+            28 => DnsType::AAAA,
+            5 => DnsType::CNAME,
+            15 => DnsType::MX,
+            2 => DnsType::NS,
+            12 => DnsType::PTR,
+            6 => DnsType::SOA,
+            16 => DnsType::TXT,
+            other => DnsType::Unknown(other),
         }
     }
     pub fn num(&self) -> u16 {
         match self {
-            Type::A => 1,
-            Type::AAAA => 28,
-            Type::CNAME => 5,
-            Type::MX => 15,
-            Type::NS => 2,
-            Type::PTR => 12,
-            Type::SOA => 6,
-            Type::TXT => 16,
-            Type::Unknown(other) => *other,
+            DnsType::A => 1,
+            DnsType::AAAA => 28,
+            DnsType::CNAME => 5,
+            DnsType::MX => 15,
+            DnsType::NS => 2,
+            DnsType::PTR => 12,
+            DnsType::SOA => 6,
+            DnsType::TXT => 16,
+            DnsType::Unknown(other) => *other,
         }
     }
 }

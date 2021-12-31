@@ -1,4 +1,4 @@
-use crate::{DnsName, DnsRecord, Message, OpCode, ProcessError, ResponseCode};
+use crate::{DnsMessage, DnsName, DnsOpCode, DnsRecord, DnsResponseCode, ProcessError};
 use fixed_buffer::FixedBuf;
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -10,11 +10,11 @@ pub fn process_datagram(
     bytes: FixedBuf<512>,
     out: &mut FixedBuf<512>,
 ) -> Result<(), ProcessError> {
-    let request = Message::parse(bytes)?;
+    let request = DnsMessage::parse(bytes)?;
     if request.is_response {
         return Err(ProcessError::NotARequest);
     }
-    if request.op_code != OpCode::Query {
+    if request.op_code != DnsOpCode::Query {
         return Err(ProcessError::InvalidOpCode);
     }
     // NOTE: We only answer the first question.
@@ -25,7 +25,7 @@ pub fn process_datagram(
     if record.typ() != question.typ {
         return Err(ProcessError::NotFound);
     }
-    let response = Message {
+    let response = DnsMessage {
         id: request.id,
         is_response: true,
         op_code: request.op_code,
@@ -33,7 +33,7 @@ pub fn process_datagram(
         truncated: false,
         recursion_desired: request.recursion_desired,
         recursion_available: false,
-        response_code: ResponseCode::NoError,
+        response_code: DnsResponseCode::NoError,
         questions: Vec::new(),
         answers: vec![record.clone()],
         name_servers: Vec::new(),

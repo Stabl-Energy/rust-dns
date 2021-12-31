@@ -7,29 +7,28 @@
 /// > - `3-15` reserved for future use
 ///
 /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
-// TODO: Rename to DnsOpCode.
 #[derive(Debug, PartialEq)]
-pub enum OpCode {
+pub enum DnsOpCode {
     Query,
     InverseQuery,
     Status,
     Reserved(u8),
 }
-impl OpCode {
+impl DnsOpCode {
     pub fn new(value: u8) -> Self {
         match value {
-            0 => OpCode::Query,
-            1 => OpCode::InverseQuery,
-            2 => OpCode::Status,
-            other => OpCode::Reserved(other),
+            0 => DnsOpCode::Query,
+            1 => DnsOpCode::InverseQuery,
+            2 => DnsOpCode::Status,
+            other => DnsOpCode::Reserved(other),
         }
     }
     pub fn num(&self) -> u8 {
         match self {
-            OpCode::Query => 0,
-            OpCode::InverseQuery => 1,
-            OpCode::Status => 2,
-            OpCode::Reserved(other) => *other,
+            DnsOpCode::Query => 0,
+            DnsOpCode::InverseQuery => 1,
+            DnsOpCode::Status => 2,
+            DnsOpCode::Reserved(other) => *other,
         }
     }
 }

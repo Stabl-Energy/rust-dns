@@ -1,4 +1,4 @@
-use crate::{DnsName, Type};
+use crate::{DnsName, DnsType};
 use core::fmt::{Debug, Formatter};
 use std::net::IpAddr;
 
@@ -59,11 +59,11 @@ impl DnsRecord {
         }
     }
 
-    pub fn typ(&self) -> Type {
+    pub fn typ(&self) -> DnsType {
         match self {
-            DnsRecord::A(_, _) => Type::A,
-            DnsRecord::AAAA(_, _) => Type::AAAA,
-            DnsRecord::CNAME(_, _) => Type::CNAME,
+            DnsRecord::A(_, _) => DnsType::A,
+            DnsRecord::AAAA(_, _) => DnsType::AAAA,
+            DnsRecord::CNAME(_, _) => DnsType::CNAME,
         }
     }
 }

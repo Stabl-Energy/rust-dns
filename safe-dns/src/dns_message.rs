@@ -1,13 +1,12 @@
 use crate::{
-    read_exact, write_u16_be, DnsName, DnsRecord, OpCode, ProcessError, Question, ResponseCode,
-    Type, ANY_CLASS, INTERNET_CLASS,
+    read_exact, write_u16_be, DnsName, DnsOpCode, DnsQuestion, DnsRecord, DnsResponseCode, DnsType,
+    ProcessError, ANY_CLASS, INTERNET_CLASS,
 };
 use fixed_buffer::FixedBuf;
 use std::convert::TryFrom;
 
-// TODO: Rename to DnsMessage.
 // TODO: Move fields and code to DnsMessageHeader.
-pub struct Message {
+pub struct DnsMessage {
     /// > `ID` A 16 bit identifier assigned by the program that generates any kind of query.  This
     /// > identifier is copied the corresponding reply and can be used by the requester to match up
     /// > replies to outstanding queries.
@@ -19,7 +18,7 @@ pub struct Message {
     ///
     /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
     pub is_response: bool,
-    pub op_code: OpCode,
+    pub op_code: DnsOpCode,
     /// > `AA` Authoritative Answer - this bit is valid in responses, and specifies that the
     /// > responding name server is an authority for the domain name in question section.
     /// >
@@ -45,24 +44,24 @@ pub struct Message {
     ///
     /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
     pub recursion_available: bool,
-    pub response_code: ResponseCode,
-    pub questions: Vec<Question>,
+    pub response_code: DnsResponseCode,
+    pub questions: Vec<DnsQuestion>,
     pub answers: Vec<DnsRecord>,
     pub name_servers: Vec<DnsRecord>,
     pub additional: Vec<DnsRecord>,
 }
-impl Message {
+impl DnsMessage {
     pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, ProcessError> {
         // Header
         let bytes: [u8; 12] = read_exact(&mut buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
         let is_response = (bytes[2] >> 7) == 1;
-        let op_code = OpCode::new((bytes[2] >> 3) & 0xF);
+        let op_code = DnsOpCode::new((bytes[2] >> 3) & 0xF);
         let authoritative_answer = ((bytes[2] >> 2) & 1) == 1;
         let truncated = ((bytes[2] >> 1) & 1) == 1;
         let recursion_desired = (bytes[2] & 1) == 1;
         let recursion_available = (bytes[3] >> 7) == 1;
-        let response_code = ResponseCode::new(bytes[3] & 0xF);
+        let response_code = DnsResponseCode::new(bytes[3] & 0xF);
         let question_count = u16::from_be_bytes([bytes[4], bytes[5]]);
         let answer_count = u16::from_be_bytes([bytes[6], bytes[7]]);
         let name_server_count = u16::from_be_bytes([bytes[8], bytes[9]]);
@@ -81,12 +80,12 @@ impl Message {
         for _ in 0..question_count {
             let name = DnsName::read(&mut buf)?;
             let bytes: [u8; 4] = read_exact(&mut buf)?;
-            let typ = Type::new(u16::from_be_bytes([bytes[0], bytes[1]]));
+            let typ = DnsType::new(u16::from_be_bytes([bytes[0], bytes[1]]));
             let class = u16::from_be_bytes([bytes[2], bytes[3]]);
             if class != INTERNET_CLASS && class != ANY_CLASS {
                 return Err(ProcessError::InvalidClass);
             }
-            questions.push(Question { name, typ });
+            questions.push(DnsQuestion { name, typ });
         }
         Ok(Self {
             id,
