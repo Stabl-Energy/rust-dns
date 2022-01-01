@@ -47,9 +47,6 @@ impl DnsMessage {
 
     /// # Errors
     /// Returns an error when `buf` fills up.
-    ///
-    /// # Panics
-    /// Panics when `questions` is not empty.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         self.header.write(out)?;
         for question in &self.questions {

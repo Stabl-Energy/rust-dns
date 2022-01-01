@@ -134,4 +134,5 @@ pub enum DnsError {
     TooManyNameServers,
     TooManyQuestions,
     Truncated,
+    Internal(String),
 }

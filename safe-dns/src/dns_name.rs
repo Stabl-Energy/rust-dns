@@ -143,7 +143,7 @@ impl DnsName {
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         for label in self.0.split('.') {
             if label.len() > 63 {
-                unreachable!();
+                DnsError::Internal(format!("label too long: {:?}", label))
             }
             let len = u8::try_from(label.len()).unwrap();
             out.write_bytes(&[len])
