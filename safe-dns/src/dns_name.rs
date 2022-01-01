@@ -122,7 +122,7 @@ impl DnsName {
             if buf.readable().len() < len {
                 return Err(DnsError::Truncated);
             }
-            let label_bytes = &buf.readable()[0..len];
+            let label_bytes = buf.read_bytes(len);
             let label = std::str::from_utf8(label_bytes).map_err(|_| DnsError::InvalidLabel)?;
             if !Self::is_valid_label(label) {
                 return Err(DnsError::InvalidLabel);

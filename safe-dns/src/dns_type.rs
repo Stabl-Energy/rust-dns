@@ -14,7 +14,7 @@ use fixed_buffer::FixedBuf;
 /// > all TYPEs are valid QTYPEs.
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.3>
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DnsType {
     /// IPv4 address
     A,

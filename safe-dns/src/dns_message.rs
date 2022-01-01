@@ -1,6 +1,8 @@
 use crate::{DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode};
 use fixed_buffer::FixedBuf;
+use std::convert::TryFrom;
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DnsMessage {
     pub header: DnsMessageHeader,
     pub questions: Vec<DnsQuestion>,
@@ -10,8 +12,14 @@ pub struct DnsMessage {
 }
 impl DnsMessage {
     /// # Errors
+    /// Returns an error when there are more than 65,536 questions.
+    pub fn question_count(&self) -> Result<u16, DnsError> {
+        u16::try_from(self.questions.len()).map_err(|_| DnsError::TooManyQuestions)
+    }
+
+    /// # Errors
     /// Returns an error when `buf` does not contain a valid message.
-    pub fn read<const N: usize>(buf: FixedBuf<N>) -> Result<Self, DnsError> {
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
         let header = DnsMessageHeader::read(buf)?;
         if header.answer_count != 0 {
             return Err(DnsError::QueryHasAnswer);
@@ -44,8 +52,8 @@ impl DnsMessage {
     /// Panics when `questions` is not empty.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         self.header.write(out)?;
-        if !self.questions.is_empty() {
-            unimplemented!();
+        for question in &self.questions {
+            question.write(out)?;
         }
         for record in self
             .answers
@@ -58,9 +66,11 @@ impl DnsMessage {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns an error when there are more than 65,536 questions.
     #[must_use]
-    pub fn answer_response(&self, answer: DnsRecord) -> Self {
-        Self {
+    pub fn answer_response(&self, answer: DnsRecord) -> Result<Self, DnsError> {
+        Ok(Self {
             header: DnsMessageHeader {
                 id: self.header.id,
                 is_response: true,
@@ -70,21 +80,23 @@ impl DnsMessage {
                 recursion_desired: self.header.recursion_desired,
                 recursion_available: false,
                 response_code: DnsResponseCode::NoError,
-                question_count: 0,
+                question_count: self.question_count()?,
                 answer_count: 1,
                 name_server_count: 0,
                 additional_count: 0,
             },
-            questions: Vec::new(),
+            questions: self.questions.clone(),
             answers: vec![answer],
             name_servers: Vec::new(),
             additional: Vec::new(),
-        }
+        })
     }
 
+    /// # Errors
+    /// Returns an error when there are more than 65,536 questions.
     #[must_use]
-    pub fn error_response(&self, response_code: DnsResponseCode) -> Self {
-        Self {
+    pub fn error_response(&self, response_code: DnsResponseCode) -> Result<Self, DnsError> {
+        Ok(Self {
             header: DnsMessageHeader {
                 id: self.header.id,
                 is_response: true,
@@ -94,15 +106,15 @@ impl DnsMessage {
                 recursion_desired: self.header.recursion_desired,
                 recursion_available: false,
                 response_code,
-                question_count: 0,
+                question_count: self.question_count()?,
                 answer_count: 0,
                 name_server_count: 0,
                 additional_count: 0,
             },
-            questions: Vec::new(),
+            questions: self.questions.clone(),
             answers: Vec::new(),
             name_servers: Vec::new(),
             additional: Vec::new(),
-        }
+        })
     }
 }

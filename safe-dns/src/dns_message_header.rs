@@ -82,8 +82,8 @@ pub struct DnsMessageHeader {
 impl DnsMessageHeader {
     /// # Errors
     /// Returns an error when `buf` does not contain a valid message header.
-    pub fn read<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
-        let bytes: [u8; 12] = read_exact(&mut buf)?;
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
+        let bytes: [u8; 12] = read_exact(buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
         let is_response = (bytes[2] >> 7) == 1;
         let op_code = DnsOpCode::new((bytes[2] >> 3) & 0xF);
@@ -119,13 +119,13 @@ impl DnsMessageHeader {
         out.write_bytes(&bytes)
             .map_err(|_| DnsError::ResponseBufferFull)?;
         let b = ((self.is_response as u8) << 7)
-            & (self.op_code.num() << 3)
-            & ((self.authoritative_answer as u8) << 2)
-            & ((self.truncated as u8) << 1)
-            & (self.recursion_desired as u8);
+            | (self.op_code.num() << 3)
+            | ((self.authoritative_answer as u8) << 2)
+            | ((self.truncated as u8) << 1)
+            | (self.recursion_desired as u8);
         out.write_bytes(&[b])
             .map_err(|_| DnsError::ResponseBufferFull)?;
-        let b = ((self.recursion_available as u8) << 7) & self.response_code.num();
+        let b = ((self.recursion_available as u8) << 7) | self.response_code.num();
         out.write_bytes(&[b])
             .map_err(|_| DnsError::ResponseBufferFull)?;
         for count in [

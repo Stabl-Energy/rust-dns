@@ -19,21 +19,31 @@ use fixed_buffer::FixedBuf;
 /// > |                     QCLASS                    |
 /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 /// > ```
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DnsQuestion {
     pub name: DnsName,
     pub typ: DnsType,
+    pub class: DnsClass,
 }
 impl DnsQuestion {
     /// # Errors
     /// Returns an error when `buf` does not contain a valid question struct.
-    pub fn read<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
-        let name = DnsName::read(&mut buf)?;
-        let typ = DnsType::read(&mut buf)?;
-        let class = DnsClass::read(&mut buf)?;
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
+        let name = DnsName::read(buf)?;
+        let typ = DnsType::read(buf)?;
+        let class = DnsClass::read(buf)?;
         if class != DnsClass::Internet && class != DnsClass::Any {
             return Err(DnsError::InvalidClass);
         }
-        Ok(DnsQuestion { name, typ })
+        Ok(DnsQuestion { name, typ, class })
+    }
+
+    /// # Errors
+    /// Returns an error when `buf` fills up.
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
+        self.name.write(out)?;
+        self.typ.write(out)?;
+        self.class.write(out)?;
+        Ok(())
     }
 }
