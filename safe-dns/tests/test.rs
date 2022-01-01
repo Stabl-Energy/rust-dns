@@ -1,6 +1,5 @@
 use permit::Permit;
 use safe_dns::DnsRecord;
-use std::io::Write;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::process::Command;
 use std::time::Duration;
@@ -12,25 +11,43 @@ fn example() {
     let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = sock.local_addr().unwrap();
     let records = vec![
-        DnsRecord::new_a("hello.example.com", "10.0.0.1").unwrap(),
-        DnsRecord::new_aaaa("hello.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
-        DnsRecord::new_cname("abc.example.com", "def.example.com").unwrap(),
+        DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap(),
+        DnsRecord::new_aaaa("bbb.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
+        DnsRecord::new_cname("ccc.example.com", "ddd.example.com").unwrap(),
     ];
-    // println!("DNS server receiving on port {}", addr.port());
-    // std::io::stdout().flush().unwrap();
-    // std::thread::sleep(Duration::from_secs(300));
-    assert!(Command::new("dig")
-        .arg("@127.0.0.1")
-        .arg("-p")
-        .arg(addr.port().to_string())
-        .arg("+time=1")
-        .arg("hello.example.com")
-        .status()
-        .unwrap()
-        .success());
     let join_handle = std::thread::spawn(move || {
         safe_dns::serve_udp(&serve_udp_permit, &sock, &records).unwrap()
     });
+    assert!(Command::new("dig")
+        .arg("@localhost")
+        .arg("-p")
+        .arg(addr.port().to_string())
+        .arg("+time=1")
+        .arg("a")
+        .arg("aaa.example.com")
+        .status()
+        .unwrap()
+        .success());
+    assert!(Command::new("dig")
+        .arg("@localhost")
+        .arg("-p")
+        .arg(addr.port().to_string())
+        .arg("+time=1")
+        .arg("aaaa")
+        .arg("bbb.example.com")
+        .status()
+        .unwrap()
+        .success());
+    assert!(Command::new("dig")
+        .arg("@localhost")
+        .arg("-p")
+        .arg(addr.port().to_string())
+        .arg("+time=1")
+        .arg("cname")
+        .arg("ccc.example.com")
+        .status()
+        .unwrap()
+        .success());
     permit.revoke();
     join_handle.join().unwrap();
 }
@@ -42,21 +59,19 @@ fn hard_coded() {
     let server_sock =
         UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = server_sock.local_addr().unwrap();
-    let records = vec![DnsRecord::new_a("www.northeastern.edu", "155.33.17.68").unwrap()];
+    let records = vec![DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap()];
     let join_handle = std::thread::spawn(move || {
         safe_dns::serve_udp(&serve_udp_permit, &server_sock, &records).unwrap()
     });
-    // https://courses.cs.duke.edu//fall16/compsci356/DNS/DNS-primer.pdf
     let request = vec![
-        0xdb, 0x42, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x77, 0x77,
-        0x77, 0x0c, 0x6e, 0x6f, 0x72, 0x74, 0x68, 0x65, 0x61, 0x73, 0x74, 0x65, 0x72, 0x6e, 0x03,
-        0x65, 0x64, 0x75, 0x00, 0x00, 0x01, 0x00, 0x01,
+        0x9A, 0x9A, 1, 0x20, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 97, 97, 97,
+        0x07, 101, 120, 97, 109, 112, 108, 101, 0x03, 99, 111, 109, 0x00, 0x00, 0x01, 0x00, 0x01,
     ];
     let expected_response = vec![
-        0xdb, 0x42, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x03, 0x77, 0x77,
-        0x77, 0x0c, 0x6e, 0x6f, 0x72, 0x74, 0x68, 0x65, 0x61, 0x73, 0x74, 0x65, 0x72, 0x6e, 0x03,
-        0x65, 0x64, 0x75, 0x00, 0x00, 0x01, 0x00, 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00,
-        0x00, 0x02, 0x58, 0x00, 0x04, 0x9b, 0x21, 0x11, 0x44,
+        0x9A, 0x9A, 0x85, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x03, 97, 97, 97,
+        0x07, 101, 120, 97, 109, 112, 108, 101, 0x03, 99, 111, 109, 0x00, 0x00, 0x01, 0x00, 0x01,
+        0x03, 97, 97, 97, 0x07, 101, 120, 97, 109, 112, 108, 101, 0x03, 99, 111, 109, 0x00, 0x00,
+        0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x2C, 0x00, 0x04, 10, 0, 0, 1,
     ];
     let client_sock =
         UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();

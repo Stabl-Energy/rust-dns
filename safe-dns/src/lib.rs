@@ -34,8 +34,9 @@
 //! - v0.1.0 - Initial version
 //!
 //! # To Do
-//! - `DoS` mitigation
+//! - Support queries with type=ANY
 //! - Return multiple results
+//! - `DoS` mitigation
 //! - Message compression
 //! - Decide whether to send back error responses.
 //! - Ergonomic constructors that take `OsStr`, for using environment variables
