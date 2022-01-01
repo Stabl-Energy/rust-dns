@@ -135,4 +135,5 @@ pub enum DnsError {
     TooManyQuestions,
     Truncated,
     Internal(String),
+    Unreachable(&'static str, u32),
 }
