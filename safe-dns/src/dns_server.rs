@@ -1,46 +1,48 @@
-use crate::{DnsMessage, DnsName, DnsOpCode, DnsRecord, DnsResponseCode, ProcessError};
+use crate::{DnsMessage, DnsName, DnsOpCode, DnsRecord, ProcessError};
 use fixed_buffer::FixedBuf;
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::iter::FromIterator;
 use std::time::Duration;
 
-pub fn process_datagram(
+/// # Errors
+/// Returns `Err` when the request is malformed or the server is not configured to answer the
+/// request.
+pub fn process_request(
     name_to_record: &HashMap<&DnsName, &DnsRecord>,
-    bytes: FixedBuf<512>,
-    out: &mut FixedBuf<512>,
-) -> Result<(), ProcessError> {
-    let request = DnsMessage::parse(bytes)?;
-    if request.is_response {
+    request: DnsMessage,
+) -> Result<DnsMessage, ProcessError> {
+    if request.header.is_response {
         return Err(ProcessError::NotARequest);
     }
-    if request.op_code != DnsOpCode::Query {
+    if request.header.op_code != DnsOpCode::Query {
         return Err(ProcessError::InvalidOpCode);
     }
     // NOTE: We only answer the first question.
     let question = request.questions.first().ok_or(ProcessError::NoQuestion)?;
+    // TODO: Support multiple answers.
+    // u16::try_from(self.questions.len()).map_err(|_| ProcessError::TooManyQuestions)?,
     let record = *name_to_record
         .get(&question.name)
         .ok_or(ProcessError::NotFound)?;
     if record.typ() != question.typ {
         return Err(ProcessError::NotFound);
     }
-    let response = DnsMessage {
-        id: request.id,
-        is_response: true,
-        op_code: request.op_code,
-        authoritative_answer: true,
-        truncated: false,
-        recursion_desired: request.recursion_desired,
-        recursion_available: false,
-        response_code: DnsResponseCode::NoError,
-        questions: Vec::new(),
-        answers: vec![record.clone()],
-        name_servers: Vec::new(),
-        additional: Vec::new(),
-    };
-    response.write(out)?;
-    Ok(())
+    Ok(request.answer_response(record.clone()))
+}
+
+/// # Errors
+/// Returns `Err` when the request is malformed or the server is not configured to answer the
+/// request.
+pub fn process_datagram(
+    name_to_record: &HashMap<&DnsName, &DnsRecord>,
+    bytes: FixedBuf<512>,
+) -> Result<FixedBuf<512>, ProcessError> {
+    let request = DnsMessage::parse(bytes)?;
+    let response = process_request(name_to_record, request)?;
+    let mut out: FixedBuf<512> = FixedBuf::new();
+    response.write(&mut out)?;
+    Ok(out)
 }
 
 /// # Errors
@@ -75,10 +77,10 @@ pub fn serve_udp(
             }
             Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
         };
-        let mut out: FixedBuf<512> = FixedBuf::new();
-        if process_datagram(&name_to_record, buf, &mut out).is_err() {
-            continue;
-        }
+        let out = match process_datagram(&name_to_record, buf) {
+            Ok(buf) => buf,
+            Err(_e) => continue,
+        };
         if out.is_empty() {
             unreachable!();
         }

@@ -41,6 +41,7 @@
 #![forbid(unsafe_code)]
 
 mod dns_message;
+mod dns_message_header;
 mod dns_name;
 mod dns_op_code;
 mod dns_question;
@@ -50,6 +51,7 @@ mod dns_server;
 mod dns_type;
 
 pub use dns_message::DnsMessage;
+pub use dns_message_header::DnsMessageHeader;
 pub use dns_name::DnsName;
 pub use dns_op_code::DnsOpCode;
 pub use dns_question::DnsQuestion;

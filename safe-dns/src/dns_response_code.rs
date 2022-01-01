@@ -14,7 +14,7 @@
 /// > - `6-15` Reserved for future use.
 ///
 /// https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DnsResponseCode {
     NoError,
     FormatError,
