@@ -137,13 +137,10 @@ impl DnsName {
 
     /// # Errors
     /// Returns an error when `buf` fills up.
-    ///
-    /// # Panics
-    /// Panics if the name is malformed.  This should never happen.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         for label in self.0.split('.') {
             if label.len() > 63 {
-                DnsError::Internal(format!("label too long: {:?}", label))
+                return Err(DnsError::Internal(format!("label too long: {:?}", label)));
             }
             let len = u8::try_from(label.len()).unwrap();
             out.write_bytes(&[len])
@@ -154,6 +151,14 @@ impl DnsName {
         out.write_bytes(&[0])
             .map_err(|_| DnsError::ResponseBufferFull)?;
         Ok(())
+    }
+
+    /// # Errors
+    /// Returns an error when the name is longer than 255 bytes.  This cannot happen.
+    pub fn as_bytes(&self) -> Result<FixedBuf<256>, DnsError> {
+        let mut buf: FixedBuf<256> = FixedBuf::new();
+        self.write(&mut buf)?;
+        Ok(buf)
     }
 
     #[must_use]

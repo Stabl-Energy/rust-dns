@@ -114,7 +114,7 @@ fn write_u32_be<const N: usize>(out: &mut FixedBuf<N>, value: u32) -> Result<(),
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum DnsError {
     EmptyName,
     InvalidClass,

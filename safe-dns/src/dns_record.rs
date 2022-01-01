@@ -1,6 +1,7 @@
 use crate::{write_bytes, write_u16_be, write_u32_be, DnsClass, DnsError, DnsName, DnsType};
 use core::fmt::{Debug, Formatter};
 use fixed_buffer::FixedBuf;
+use std::convert::TryFrom;
 use std::net::IpAddr;
 
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -10,6 +11,20 @@ pub enum DnsRecord {
     CNAME(DnsName, DnsName),
 }
 impl DnsRecord {
+    /// # Errors
+    /// Returns an error when `buf` is full or `bytes` is longer than 65,535 bytes.
+    pub fn write_rdata<const N: usize>(
+        bytes: &[u8],
+        out: &mut FixedBuf<N>,
+    ) -> Result<(), DnsError> {
+        let len = u16::try_from(bytes.len()).map_err(|_| {
+            DnsError::Internal(format!("Cannot write rdata with length {}", bytes.len()))
+        })?;
+        write_u16_be(out, len)?;
+        write_bytes(out, &bytes)?;
+        Ok(())
+    }
+
     /// # Errors
     /// Returns an error when `name` is not a valid DNS name
     /// or `ipv4_addr` is not a valid IPv4 address.
@@ -125,24 +140,12 @@ impl DnsRecord {
         DnsClass::Internet.write(out)?;
         write_u32_be(out, 300)?; // TTL in seconds.
         match self {
-            DnsRecord::A(_, ipv4_addr) => {
-                let bytes = ipv4_addr.octets();
-                write_u16_be(out, bytes.len() as u16)?;
-                write_bytes(out, &bytes)?;
-            }
-            DnsRecord::AAAA(_, ipv6_addr) => {
-                let bytes = ipv6_addr.octets();
-                write_u16_be(out, bytes.len() as u16)?;
-                write_bytes(out, &bytes)?;
-            }
+            DnsRecord::A(_, ipv4_addr) => Self::write_rdata(&ipv4_addr.octets(), out),
+            DnsRecord::AAAA(_, ipv6_addr) => Self::write_rdata(&ipv6_addr.octets(), out),
             DnsRecord::CNAME(_, target_name) => {
-                let mut buf: FixedBuf<256> = FixedBuf::new();
-                target_name.write(&mut buf)?;
-                write_u16_be(out, buf.len() as u16)?;
-                write_bytes(out, buf.readable())?;
+                Self::write_rdata(target_name.as_bytes()?.readable(), out)
             }
         }
-        Ok(())
     }
 }
 impl Debug for DnsRecord {
