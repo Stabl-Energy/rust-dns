@@ -1,25 +1,87 @@
-use crate::{write_bytes, write_u16_be, write_u32_be, DnsClass, DnsError, DnsName, DnsType};
+use crate::{
+    read_exact, read_u16_be, read_u32_be, write_bytes, write_u16_be, write_u32_be, DnsClass,
+    DnsError, DnsName, DnsType,
+};
 use core::fmt::{Debug, Formatter};
 use fixed_buffer::FixedBuf;
 use std::convert::TryFrom;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+/// > 4.1.3. Resource record format
+/// >
+/// > The answer, authority, and additional sections all share the same format: a variable number
+/// > of resource records, where the number of records is specified in the corresponding count
+/// > field in the header.  Each resource record has the following format:
+/// >
+/// > ```text
+/// >                                 1  1  1  1  1  1
+/// >   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                                               |
+/// > /                                               /
+/// > /                      NAME                     /
+/// > |                                               |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                      TYPE                     |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                     CLASS                     |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                      TTL                      |
+/// > |                                               |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                   RDLENGTH                    |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+/// > /                     RDATA                     /
+/// > /                                               /
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > ```
+/// > where:
+/// > - NAME: a domain name to which this resource record pertains.
+/// > - TYPE: two octets containing one of the RR type codes.  This field specifies the meaning of
+/// >   the data in the RDATA field.
+/// > - CLASS: two octets which specify the class of the data in the RDATA field.
+/// > - TTL:  a 32 bit unsigned integer that specifies the time interval (in seconds) that the
+/// >   resource record may be cached before it should be discarded.  Zero values are interpreted
+/// >   to mean that the RR can only be used for the transaction in progress, and should not be
+/// >   cached.
+/// > - RDLENGTH: an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
+/// > - RDATA:  a variable length string of octets that describes the resource.  The format of this
+/// >   information varies according to the TYPE and CLASS of the resource record.  For example,
+/// >   the if the TYPE is A and the CLASS is IN, the RDATA field is a 4 octet ARPA Internet
+/// >   address.
+///
+/// <https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.3>
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DnsRecord {
     A(DnsName, std::net::Ipv4Addr),
     AAAA(DnsName, std::net::Ipv6Addr),
     CNAME(DnsName, DnsName),
+    Unknown(DnsName, DnsType),
 }
 impl DnsRecord {
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid resource record.
+    pub fn read_rdata<const N: usize>(buf: &mut FixedBuf<N>) -> Result<FixedBuf<65535>, DnsError> {
+        let len = read_u16_be(buf)?;
+        if buf.len() < (len as usize) {
+            return Err(DnsError::Truncated);
+        }
+        let borrowed_rdata = buf.read_bytes(len as usize);
+        let mut rdata: FixedBuf<65535> = FixedBuf::new();
+        rdata
+            .write_bytes(borrowed_rdata)
+            .map_err(|_| DnsError::Unreachable(file!(), line!()))?;
+        Ok(rdata)
+    }
+
     /// # Errors
     /// Returns an error when `buf` is full or `bytes` is longer than 65,535 bytes.
     pub fn write_rdata<const N: usize>(
         bytes: &[u8],
         out: &mut FixedBuf<N>,
     ) -> Result<(), DnsError> {
-        let len = u16::try_from(bytes.len()).map_err(|_| {
-            DnsError::Internal(format!("Cannot write rdata with length {}", bytes.len()))
-        })?;
+        let len =
+            u16::try_from(bytes.len()).map_err(|_| DnsError::Unreachable(file!(), line!()))?;
         write_u16_be(out, len)?;
         write_bytes(out, &bytes)?;
         Ok(())
@@ -72,7 +134,8 @@ impl DnsRecord {
         match self {
             DnsRecord::A(dns_name, _)
             | DnsRecord::AAAA(dns_name, _)
-            | DnsRecord::CNAME(dns_name, _) => dns_name,
+            | DnsRecord::CNAME(dns_name, _)
+            | DnsRecord::Unknown(dns_name, _) => dns_name,
         }
     }
 
@@ -82,56 +145,40 @@ impl DnsRecord {
             DnsRecord::A(_, _) => DnsType::A,
             DnsRecord::AAAA(_, _) => DnsType::AAAA,
             DnsRecord::CNAME(_, _) => DnsType::CNAME,
+            DnsRecord::Unknown(_, typ) => DnsType::Unknown(typ.num()),
         }
     }
 
-    /// > 4.1.3. Resource record format
-    /// >
-    /// > The answer, authority, and additional sections all share the same
-    /// > format: a variable number of resource records, where the number of
-    /// > records is specified in the corresponding count field in the header.
-    /// > Each resource record has the following format:
-    /// >
-    /// > ```text
-    /// >                                 1  1  1  1  1  1
-    /// >   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > |                                               |
-    /// > /                                               /
-    /// > /                      NAME                     /
-    /// > |                                               |
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > |                      TYPE                     |
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > |                     CLASS                     |
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > |                      TTL                      |
-    /// > |                                               |
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > |                   RDLENGTH                    |
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
-    /// > /                     RDATA                     /
-    /// > /                                               /
-    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-    /// > ```
-    /// > where:
-    /// > - NAME: a domain name to which this resource record pertains.
-    /// > - TYPE: two octets containing one of the RR type codes.  This field specifies the meaning
-    /// >   of the data in the RDATA field.
-    /// > - CLASS: two octets which specify the class of the data in the RDATA field.
-    /// > - TTL:  a 32 bit unsigned integer that specifies the time interval (in seconds) that the
-    /// >   resource record may be cached before it should be discarded.  Zero values are
-    /// >   interpreted to mean that the RR can only be used for the transaction in progress, and
-    /// >   should not be cached.
-    /// > - RDLENGTH: an unsigned 16 bit integer that specifies the length in octets of the RDATA
-    /// >   field.
-    /// > - RDATA:  a variable length string of octets that describes the resource.  The format of
-    /// >   this information varies according to the TYPE and CLASS of the resource record.  For
-    /// >   example, the if the TYPE is A and the CLASS is IN, the RDATA field is a 4 octet ARPA
-    /// >   Internet address.
-    ///
-    /// <https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.3>
-    ///
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid resource record.
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
+        let name = DnsName::read(buf)?;
+        let typ = DnsType::read(buf)?;
+        let class = DnsClass::read(buf)?;
+        if class != DnsClass::Internet && class != DnsClass::Any {
+            return Err(DnsError::InvalidClass);
+        }
+        let _ttl_seconds = read_u32_be(buf)?;
+        let mut rdata = Self::read_rdata(buf)?;
+        match typ {
+            DnsType::A => {
+                let octets: [u8; 4] = read_exact(&mut rdata)?;
+                Ok(DnsRecord::A(name, Ipv4Addr::from(octets)))
+            }
+            DnsType::AAAA => {
+                let octets: [u8; 16] = read_exact(&mut rdata)?;
+                Ok(DnsRecord::AAAA(name, Ipv6Addr::from(octets)))
+            }
+            DnsType::CNAME => Ok(DnsRecord::CNAME(name, DnsName::read(&mut rdata)?)),
+            DnsType::MX
+            | DnsType::NS
+            | DnsType::PTR
+            | DnsType::SOA
+            | DnsType::TXT
+            | DnsType::Unknown(_) => Ok(DnsRecord::Unknown(name, typ)),
+        }
+    }
+
     /// # Errors
     /// Returns an error when `buf` is full.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
@@ -145,6 +192,10 @@ impl DnsRecord {
             DnsRecord::CNAME(_, target_name) => {
                 Self::write_rdata(target_name.as_bytes()?.readable(), out)
             }
+            DnsRecord::Unknown(_, _) => Err(DnsError::Internal(format!(
+                "cannot write record {:?}",
+                self
+            ))),
         }
     }
 }
@@ -154,9 +205,11 @@ impl Debug for DnsRecord {
             DnsRecord::A(name, addr) => write!(f, "DnsRecord::A({},{})", name, addr),
             DnsRecord::AAAA(name, addr) => write!(f, "DnsRecord::AAAA({},{})", name, addr),
             DnsRecord::CNAME(name, target) => write!(f, "DnsRecord::CNAME({},{})", name, target),
+            DnsRecord::Unknown(name, typ) => write!(f, "DnsRecord::Unknown({},{})", name, typ),
         }
     }
 }
+
 #[cfg(test)]
 #[test]
 fn test_dns_record() {

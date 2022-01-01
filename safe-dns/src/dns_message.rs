@@ -21,27 +21,32 @@ impl DnsMessage {
     /// Returns an error when `buf` does not contain a valid message.
     pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
         let header = DnsMessageHeader::read(buf)?;
-        if header.answer_count != 0 {
-            return Err(DnsError::QueryHasAnswer);
-        }
-        if header.name_server_count != 0 {
-            return Err(DnsError::QueryHasNameServer);
-        }
-        if header.additional_count != 0 {
-            return Err(DnsError::QueryHasAdditionalRecords);
-        }
-        // Questions
         let mut questions = Vec::with_capacity(header.question_count as usize);
         for _ in 0..header.question_count {
             let question = DnsQuestion::read(buf)?;
             questions.push(question);
         }
+        let mut answers = Vec::with_capacity(header.answer_count as usize);
+        for _ in 0..header.answer_count {
+            let record = DnsRecord::read(buf)?;
+            answers.push(record);
+        }
+        let mut name_servers = Vec::with_capacity(header.name_server_count as usize);
+        for _ in 0..header.name_server_count {
+            let record = DnsRecord::read(buf)?;
+            name_servers.push(record);
+        }
+        let mut additional = Vec::with_capacity(header.additional_count as usize);
+        for _ in 0..header.additional_count {
+            let record = DnsRecord::read(buf)?;
+            additional.push(record);
+        }
         Ok(Self {
             header,
             questions,
-            answers: Vec::new(),
-            name_servers: Vec::new(),
-            additional: Vec::new(),
+            answers,
+            name_servers,
+            additional,
         })
     }
 
