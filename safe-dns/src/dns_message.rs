@@ -1,6 +1,6 @@
 use crate::{
-    read_exact, write_u16_be, DnsMessageHeader, DnsName, DnsQuestion, DnsRecord, DnsResponseCode,
-    DnsType, ProcessError, ANY_CLASS, INTERNET_CLASS,
+    write_u16_be, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode, ProcessError,
+    INTERNET_CLASS,
 };
 use fixed_buffer::FixedBuf;
 
@@ -12,7 +12,7 @@ pub struct DnsMessage {
     pub additional: Vec<DnsRecord>,
 }
 impl DnsMessage {
-    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, ProcessError> {
+    pub fn parse<const N: usize>(buf: FixedBuf<N>) -> Result<Self, ProcessError> {
         let header = DnsMessageHeader::parse(buf)?;
         if header.answer_count != 0 {
             return Err(ProcessError::QueryHasAnswer);
@@ -26,14 +26,8 @@ impl DnsMessage {
         // Questions
         let mut questions = Vec::with_capacity(header.question_count as usize);
         for _ in 0..header.question_count {
-            let name = DnsName::read(&mut buf)?;
-            let bytes: [u8; 4] = read_exact(&mut buf)?;
-            let typ = DnsType::new(u16::from_be_bytes([bytes[0], bytes[1]]));
-            let class = u16::from_be_bytes([bytes[2], bytes[3]]);
-            if class != INTERNET_CLASS && class != ANY_CLASS {
-                return Err(ProcessError::InvalidClass);
-            }
-            questions.push(DnsQuestion { name, typ });
+            let question = DnsQuestion::parse(buf)?;
+            questions.push(question);
         }
         Ok(Self {
             header,
