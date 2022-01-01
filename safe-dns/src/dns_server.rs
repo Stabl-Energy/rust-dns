@@ -19,7 +19,6 @@ pub fn process_request(
     }
     // NOTE: We only answer the first question.
     let question = request.questions.first().ok_or(DnsError::NoQuestion)?;
-    // TODO: Support multiple answers.
     // u16::try_from(self.questions.len()).map_err(|_| ProcessError::TooManyQuestions)?,
     let record = *name_to_record
         .get(&question.name)

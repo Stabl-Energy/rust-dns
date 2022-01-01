@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::time::Duration;
 
 #[test]
-fn test() {
+fn example() {
     let permit = Permit::new();
     let serve_udp_permit = permit.new_sub();
     let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
@@ -21,17 +21,13 @@ fn test() {
 }
 
 #[test]
-fn test_binary() {
+fn hard_coded() {
     let permit = Permit::new();
     let serve_udp_permit = permit.new_sub();
     let server_sock =
         UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = server_sock.local_addr().unwrap();
-    let records = vec![
-        DnsRecord::new_a("hello.example.com", "10.0.0.1").unwrap(),
-        DnsRecord::new_aaaa("hello.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
-        DnsRecord::new_cname("abc.example.com", "def.example.com").unwrap(),
-    ];
+    let records = vec![DnsRecord::new_a("www.northeastern.edu", "155.33.17.68").unwrap()];
     let join_handle = std::thread::spawn(move || {
         safe_dns::serve_udp(&serve_udp_permit, &server_sock, &records).unwrap()
     });

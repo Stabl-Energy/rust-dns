@@ -1,5 +1,6 @@
-use crate::{DnsName, DnsType};
+use crate::{write_bytes, write_u16_be, write_u32_be, DnsClass, DnsError, DnsName, DnsType};
 use core::fmt::{Debug, Formatter};
+use fixed_buffer::FixedBuf;
 use std::net::IpAddr;
 
 #[derive(Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -67,6 +68,81 @@ impl DnsRecord {
             DnsRecord::AAAA(_, _) => DnsType::AAAA,
             DnsRecord::CNAME(_, _) => DnsType::CNAME,
         }
+    }
+
+    /// > 4.1.3. Resource record format
+    /// >
+    /// > The answer, authority, and additional sections all share the same
+    /// > format: a variable number of resource records, where the number of
+    /// > records is specified in the corresponding count field in the header.
+    /// > Each resource record has the following format:
+    /// >
+    /// > ```text
+    /// >                                 1  1  1  1  1  1
+    /// >   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > |                                               |
+    /// > /                                               /
+    /// > /                      NAME                     /
+    /// > |                                               |
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > |                      TYPE                     |
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > |                     CLASS                     |
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > |                      TTL                      |
+    /// > |                                               |
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > |                   RDLENGTH                    |
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+    /// > /                     RDATA                     /
+    /// > /                                               /
+    /// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /// > ```
+    /// > where:
+    /// > - NAME: a domain name to which this resource record pertains.
+    /// > - TYPE: two octets containing one of the RR type codes.  This field specifies the meaning
+    /// >   of the data in the RDATA field.
+    /// > - CLASS: two octets which specify the class of the data in the RDATA field.
+    /// > - TTL:  a 32 bit unsigned integer that specifies the time interval (in seconds) that the
+    /// >   resource record may be cached before it should be discarded.  Zero values are
+    /// >   interpreted to mean that the RR can only be used for the transaction in progress, and
+    /// >   should not be cached.
+    /// > - RDLENGTH: an unsigned 16 bit integer that specifies the length in octets of the RDATA
+    /// >   field.
+    /// > - RDATA:  a variable length string of octets that describes the resource.  The format of
+    /// >   this information varies according to the TYPE and CLASS of the resource record.  For
+    /// >   example, the if the TYPE is A and the CLASS is IN, the RDATA field is a 4 octet ARPA
+    /// >   Internet address.
+    ///
+    /// <https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.3>
+    ///
+    /// # Errors
+    /// Returns an error when `buf` is full.
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
+        self.name().write(out)?;
+        self.typ().write(out)?;
+        DnsClass::Internet.write(out)?;
+        write_u32_be(out, 300)?; // TTL in seconds.
+        match self {
+            DnsRecord::A(_, ipv4_addr) => {
+                let bytes = ipv4_addr.octets();
+                write_u16_be(out, bytes.len() as u16)?;
+                write_bytes(out, &bytes)?;
+            }
+            DnsRecord::AAAA(_, ipv6_addr) => {
+                let bytes = ipv6_addr.octets();
+                write_u16_be(out, bytes.len() as u16)?;
+                write_bytes(out, &bytes)?;
+            }
+            DnsRecord::CNAME(_, target_name) => {
+                let mut buf: FixedBuf<256> = FixedBuf::new();
+                target_name.write(&mut buf)?;
+                write_u16_be(out, buf.len() as u16)?;
+                write_bytes(out, buf.readable())?;
+            }
+        }
+        Ok(())
     }
 }
 impl Debug for DnsRecord {

@@ -35,6 +35,8 @@
 //!
 //! # To Do
 //! - `DoS` mitigation
+//! - Return multiple results
+//! - Message compression
 //! - Decide whether to send back error responses.
 //! - Ergonomic constructors that take `OsStr`, for using environment variables
 //! - Custom TTLs
@@ -92,8 +94,21 @@ fn read_u16_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u16, DnsError> {
     Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
 }
 
+fn write_bytes<const N: usize>(out: &mut FixedBuf<N>, bytes: &[u8]) -> Result<(), DnsError> {
+    out.write_bytes(&bytes)
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
 fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), DnsError> {
     let bytes: [u8; 2] = value.to_be_bytes();
+    out.write_bytes(&bytes)
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
+fn write_u32_be<const N: usize>(out: &mut FixedBuf<N>, value: u32) -> Result<(), DnsError> {
+    let bytes: [u8; 4] = value.to_be_bytes();
     out.write_bytes(&bytes)
         .map_err(|_| DnsError::ResponseBufferFull)?;
     Ok(())
