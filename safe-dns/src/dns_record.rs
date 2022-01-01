@@ -83,7 +83,7 @@ impl DnsRecord {
         let len =
             u16::try_from(bytes.len()).map_err(|_| DnsError::Unreachable(file!(), line!()))?;
         write_u16_be(out, len)?;
-        write_bytes(out, &bytes)?;
+        write_bytes(out, bytes)?;
         Ok(())
     }
 

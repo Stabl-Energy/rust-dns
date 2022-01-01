@@ -139,7 +139,8 @@ impl DnsName {
             if label.len() > 63 {
                 return Err(DnsError::Unreachable(file!(), line!()));
             }
-            let len = u8::try_from(label.len()).unwrap();
+            let len =
+                u8::try_from(label.len()).map_err(|_| DnsError::Unreachable(file!(), line!()))?;
             out.write_bytes(&[len])
                 .map_err(|_| DnsError::ResponseBufferFull)?;
             out.write_bytes(label.as_bytes())

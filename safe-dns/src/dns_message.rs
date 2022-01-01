@@ -38,6 +38,7 @@ impl DnsMessage {
         }
         let mut additional = Vec::with_capacity(header.additional_count as usize);
         for _ in 0..header.additional_count {
+            #[allow(clippy::single_match)]
             match DnsRecord::read(buf) {
                 Ok(record) => additional.push(record),
                 // Ignore invalid additional records.
@@ -73,7 +74,6 @@ impl DnsMessage {
 
     /// # Errors
     /// Returns an error when there are more than 65,536 questions.
-    #[must_use]
     pub fn answer_response(&self, answer: DnsRecord) -> Result<Self, DnsError> {
         Ok(Self {
             header: DnsMessageHeader {
@@ -99,7 +99,6 @@ impl DnsMessage {
 
     /// # Errors
     /// Returns an error when there are more than 65,536 questions.
-    #[must_use]
     pub fn error_response(&self, response_code: DnsResponseCode) -> Result<Self, DnsError> {
         Ok(Self {
             header: DnsMessageHeader {

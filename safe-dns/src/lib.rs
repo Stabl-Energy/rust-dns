@@ -101,7 +101,7 @@ fn read_u32_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u32, DnsError> {
 }
 
 fn write_bytes<const N: usize>(out: &mut FixedBuf<N>, bytes: &[u8]) -> Result<(), DnsError> {
-    out.write_bytes(&bytes)
+    out.write_bytes(bytes)
         .map_err(|_| DnsError::ResponseBufferFull)?;
     Ok(())
 }
