@@ -1,4 +1,4 @@
-use crate::{read_exact, read_u16_be, write_u16_be, DnsError};
+use crate::{read_u16_be, write_u16_be, DnsError};
 use fixed_buffer::FixedBuf;
 
 /// > CLASS fields appear in resource records.  The following CLASS mnemonics and values are

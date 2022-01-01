@@ -51,6 +51,7 @@ mod dns_response_code;
 mod dns_server;
 mod dns_type;
 
+pub use dns_class::DnsClass;
 pub use dns_message::DnsMessage;
 pub use dns_message_header::DnsMessageHeader;
 pub use dns_name::DnsName;
@@ -63,10 +64,6 @@ pub use dns_type::DnsType;
 
 use fixed_buffer::FixedBuf;
 
-// TODO: Change to enum.
-const INTERNET_CLASS: u16 = 1;
-const ANY_CLASS: u16 = 255;
-
 fn read_exact<const N: usize, const M: usize>(buf: &mut FixedBuf<N>) -> Result<[u8; M], DnsError> {
     let mut result = [0_u8; M];
     buf.try_read_exact(&mut result).ok_or(DnsError::Truncated)?;
@@ -77,11 +74,11 @@ fn read_u8<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, DnsError> {
     buf.try_read_byte().ok_or(DnsError::Truncated)
 }
 
-fn write_u8<const N: usize>(out: &mut FixedBuf<N>, value: u8) -> Result<(), DnsError> {
-    out.write_bytes(&[value])
-        .map_err(|_| DnsError::ResponseBufferFull)?;
-    Ok(())
-}
+// fn write_u8<const N: usize>(out: &mut FixedBuf<N>, value: u8) -> Result<(), DnsError> {
+//     out.write_bytes(&[value])
+//         .map_err(|_| DnsError::ResponseBufferFull)?;
+//     Ok(())
+// }
 
 fn read_u16_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u16, DnsError> {
     let bytes: [u8; 2] = read_exact(buf)?;

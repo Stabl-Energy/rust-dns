@@ -1,6 +1,3 @@
-use crate::{read_u16_be, write_u16_be, DnsError};
-use fixed_buffer::FixedBuf;
-
 /// > `OPCODE`  A four bit field that specifies kind of query in this message.
 /// >         This value is set by the originator of a query and copied into
 /// >         the response.  The values are:

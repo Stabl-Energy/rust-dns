@@ -1,6 +1,5 @@
 use crate::{
-    write_u16_be, DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode,
-    INTERNET_CLASS,
+    write_u16_be, DnsClass, DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode,
 };
 use fixed_buffer::FixedBuf;
 
@@ -50,8 +49,8 @@ impl DnsMessage {
             .chain(self.additional.iter())
         {
             record.name().write(out)?;
-            write_u16_be(out, record.typ().num())?;
-            write_u16_be(out, INTERNET_CLASS)?;
+            record.typ().write(out)?;
+            DnsClass::Internet.write(out)?;
             write_u16_be(out, 300_u16)?;
             // write_u16_be(out, rdlen)?;
             // write rdata

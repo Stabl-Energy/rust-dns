@@ -1,5 +1,5 @@
 use crate::dns_class::DnsClass;
-use crate::{read_exact, DnsError, DnsName, DnsType, ANY_CLASS, INTERNET_CLASS};
+use crate::{DnsError, DnsName, DnsType};
 use fixed_buffer::FixedBuf;
 
 /// > The question section is used to carry the "question" in most queries, i.e., the parameters
