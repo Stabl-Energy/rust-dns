@@ -25,7 +25,9 @@ pub struct DnsQuestion {
     pub typ: DnsType,
 }
 impl DnsQuestion {
-    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid question struct.
+    pub fn read<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let name = DnsName::read(&mut buf)?;
         let typ = DnsType::read(&mut buf)?;
         let class = DnsClass::read(&mut buf)?;

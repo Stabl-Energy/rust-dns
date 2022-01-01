@@ -15,6 +15,7 @@ pub enum DnsOpCode {
     Reserved(u8),
 }
 impl DnsOpCode {
+    #[must_use]
     pub fn new(value: u8) -> Self {
         match value {
             0 => DnsOpCode::Query,
@@ -23,6 +24,8 @@ impl DnsOpCode {
             other => DnsOpCode::Reserved(other),
         }
     }
+
+    #[must_use]
     pub fn num(&self) -> u8 {
         match self {
             DnsOpCode::Query => 0,

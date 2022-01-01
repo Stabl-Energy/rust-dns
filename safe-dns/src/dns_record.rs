@@ -51,6 +51,7 @@ impl DnsRecord {
         Ok(Self::CNAME(dns_name, dns_name_target))
     }
 
+    #[must_use]
     pub fn name(&self) -> &DnsName {
         match self {
             DnsRecord::A(dns_name, _)
@@ -59,6 +60,7 @@ impl DnsRecord {
         }
     }
 
+    #[must_use]
     pub fn typ(&self) -> DnsType {
         match self {
             DnsRecord::A(_, _) => DnsType::A,

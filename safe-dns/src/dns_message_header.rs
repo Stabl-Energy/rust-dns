@@ -24,6 +24,7 @@ use fixed_buffer::FixedBuf;
 /// > ```
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc1035#section-4.1.1>
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DnsMessageHeader {
     /// > `ID` A 16 bit identifier assigned by the program that generates any kind of query.  This
@@ -79,6 +80,8 @@ pub struct DnsMessageHeader {
     pub additional_count: u16,
 }
 impl DnsMessageHeader {
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid message header.
     pub fn read<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let bytes: [u8; 12] = read_exact(&mut buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
@@ -109,6 +112,8 @@ impl DnsMessageHeader {
         })
     }
 
+    /// # Errors
+    /// Returns an error when `buf` fills up.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         let bytes: [u8; 2] = self.id.to_be_bytes();
         out.write_bytes(&bytes)

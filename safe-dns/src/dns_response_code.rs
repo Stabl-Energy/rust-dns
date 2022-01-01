@@ -25,6 +25,7 @@ pub enum DnsResponseCode {
     Reserved(u8),
 }
 impl DnsResponseCode {
+    #[must_use]
     pub fn new(value: u8) -> Self {
         match value {
             0 => DnsResponseCode::NoError,
@@ -36,6 +37,8 @@ impl DnsResponseCode {
             other => DnsResponseCode::Reserved(other),
         }
     }
+
+    #[must_use]
     pub fn num(&self) -> u8 {
         match self {
             DnsResponseCode::NoError => 0,

@@ -11,7 +11,9 @@ pub struct DnsMessage {
     pub additional: Vec<DnsRecord>,
 }
 impl DnsMessage {
-    pub fn parse<const N: usize>(buf: FixedBuf<N>) -> Result<Self, DnsError> {
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid message.
+    pub fn read<const N: usize>(buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let header = DnsMessageHeader::read(buf)?;
         if header.answer_count != 0 {
             return Err(DnsError::QueryHasAnswer);
@@ -25,7 +27,7 @@ impl DnsMessage {
         // Questions
         let mut questions = Vec::with_capacity(header.question_count as usize);
         for _ in 0..header.question_count {
-            let question = DnsQuestion::parse(buf)?;
+            let question = DnsQuestion::read(buf)?;
             questions.push(question);
         }
         Ok(Self {
@@ -37,6 +39,11 @@ impl DnsMessage {
         })
     }
 
+    /// # Errors
+    /// Returns an error when `buf` fills up.
+    ///
+    /// # Panics
+    /// Panics when `questions` is not empty.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         self.header.write(out)?;
         if !self.questions.is_empty() {
@@ -59,6 +66,7 @@ impl DnsMessage {
         Ok(())
     }
 
+    #[must_use]
     pub fn answer_response(&self, answer: DnsRecord) -> Self {
         Self {
             header: DnsMessageHeader {
@@ -82,6 +90,7 @@ impl DnsMessage {
         }
     }
 
+    #[must_use]
     pub fn error_response(&self, response_code: DnsResponseCode) -> Self {
         Self {
             header: DnsMessageHeader {

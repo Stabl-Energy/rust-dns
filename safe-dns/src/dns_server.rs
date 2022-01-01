@@ -2,7 +2,6 @@ use crate::{DnsError, DnsMessage, DnsName, DnsOpCode, DnsRecord};
 use fixed_buffer::FixedBuf;
 use std::collections::HashMap;
 use std::io::ErrorKind;
-use std::iter::FromIterator;
 use std::time::Duration;
 
 /// # Errors
@@ -10,7 +9,7 @@ use std::time::Duration;
 /// request.
 pub fn process_request(
     name_to_record: &HashMap<&DnsName, &DnsRecord>,
-    request: DnsMessage,
+    request: &DnsMessage,
 ) -> Result<DnsMessage, DnsError> {
     if request.header.is_response {
         return Err(DnsError::NotARequest);
@@ -34,12 +33,13 @@ pub fn process_request(
 /// # Errors
 /// Returns `Err` when the request is malformed or the server is not configured to answer the
 /// request.
+#[allow(clippy::implicit_hasher)]
 pub fn process_datagram(
     name_to_record: &HashMap<&DnsName, &DnsRecord>,
     bytes: FixedBuf<512>,
 ) -> Result<FixedBuf<512>, DnsError> {
-    let request = DnsMessage::parse(bytes)?;
-    let response = process_request(name_to_record, request)?;
+    let request = DnsMessage::read(bytes)?;
+    let response = process_request(name_to_record, &request)?;
     let mut out: FixedBuf<512> = FixedBuf::new();
     response.write(&mut out)?;
     Ok(out)
@@ -58,7 +58,7 @@ pub fn serve_udp(
         .local_addr()
         .map_err(|e| format!("error getting socket local address: {}", e))?;
     let name_to_record: HashMap<&DnsName, &DnsRecord> =
-        HashMap::from_iter(records.iter().map(|x| (x.name(), x)));
+        records.iter().map(|x| (x.name(), x)).collect();
     while !permit.is_revoked() {
         // > Messages carried by UDP are restricted to 512 bytes (not counting the IP
         // > or UDP headers).  Longer messages are truncated and the TC bit is set in

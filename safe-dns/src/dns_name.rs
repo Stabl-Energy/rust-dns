@@ -104,6 +104,8 @@ impl DnsName {
         Ok(Self(trimmed.to_ascii_lowercase()))
     }
 
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid name.
     pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<DnsName, DnsError> {
         let mut value = String::new();
         for _ in 0..63 {
@@ -133,6 +135,11 @@ impl DnsName {
         Err(DnsError::TooManyLabels)
     }
 
+    /// # Errors
+    /// Returns an error when `buf` fills up.
+    ///
+    /// # Panics
+    /// Panics if the name is malformed.  This should never happen.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         for label in self.0.split('.') {
             if label.len() > 63 {

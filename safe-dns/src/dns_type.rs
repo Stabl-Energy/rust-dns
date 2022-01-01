@@ -35,6 +35,7 @@ pub enum DnsType {
     Unknown(u16),
 }
 impl DnsType {
+    #[must_use]
     pub fn new(value: u16) -> Self {
         match value {
             1 => DnsType::A,
@@ -49,6 +50,7 @@ impl DnsType {
         }
     }
 
+    #[must_use]
     pub fn num(&self) -> u16 {
         match self {
             DnsType::A => 1,
@@ -63,10 +65,14 @@ impl DnsType {
         }
     }
 
+    /// # Errors
+    /// Returns an error when `buf` does not contain a valid two-byte type code.
     pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
         Ok(Self::new(read_u16_be(buf)?))
     }
 
+    /// # Errors
+    /// Returns an error when `buf` fills up.
     pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         write_u16_be(out, self.num())
     }
