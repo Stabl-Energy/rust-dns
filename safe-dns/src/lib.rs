@@ -34,7 +34,14 @@
 //! - v0.1.0 - Initial version
 //!
 //! # To Do
+//! - `DoS` mitigation
+//! - Decide whether to send back error responses.
 //! - Ergonomic constructors that take `OsStr`, for using environment variables
+//! - Custom TTLs
+//! - NS records (and glue)
+//! - Client
+//! - Caching client
+//! - Recursive resolver
 //!
 //! ## Alternatives
 //!

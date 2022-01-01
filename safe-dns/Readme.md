@@ -34,7 +34,7 @@ A threaded DNS server library.
 - v0.1.0 - Initial version
 
 # To Do
-- DoS mitigation
+- `DoS` mitigation
 - Decide whether to send back error responses.
 - Ergonomic constructors that take `OsStr`, for using environment variables
 - Custom TTLs
