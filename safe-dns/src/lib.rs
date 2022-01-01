@@ -66,29 +66,25 @@ use fixed_buffer::FixedBuf;
 const INTERNET_CLASS: u16 = 1;
 const ANY_CLASS: u16 = 255;
 
-fn read_exact<const N: usize, const M: usize>(
-    buf: &mut FixedBuf<N>,
-) -> Result<[u8; M], ProcessError> {
+fn read_exact<const N: usize, const M: usize>(buf: &mut FixedBuf<N>) -> Result<[u8; M], DnsError> {
     let mut result = [0_u8; M];
-    buf.try_read_exact(&mut result)
-        .ok_or(ProcessError::Truncated)?;
+    buf.try_read_exact(&mut result).ok_or(DnsError::Truncated)?;
     Ok(result)
 }
 
-fn read_byte<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, ProcessError> {
-    buf.try_read_byte().ok_or(ProcessError::Truncated)
+fn read_byte<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, DnsError> {
+    buf.try_read_byte().ok_or(DnsError::Truncated)
 }
 
-fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), ProcessError> {
+fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), DnsError> {
     let bytes: [u8; 2] = value.to_be_bytes();
     out.write_bytes(&bytes)
-        .map_err(|_| ProcessError::ResponseBufferFull)?;
+        .map_err(|_| DnsError::ResponseBufferFull)?;
     Ok(())
 }
 
-// TODO: Rename to DnsError.
 #[derive(Debug, PartialEq)]
-pub enum ProcessError {
+pub enum DnsError {
     EmptyName,
     InvalidClass,
     InvalidLabel,

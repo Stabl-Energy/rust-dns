@@ -1,4 +1,4 @@
-use crate::{read_byte, ProcessError};
+use crate::{read_byte, DnsError};
 use core::convert::TryFrom;
 use core::fmt::{Display, Formatter};
 use fixed_buffer::FixedBuf;
@@ -95,48 +95,48 @@ impl DnsName {
         Ok(Self(trimmed.to_ascii_lowercase()))
     }
 
-    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<DnsName, ProcessError> {
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<DnsName, DnsError> {
         let mut value = String::new();
         for _ in 0..63 {
             let len = read_byte(buf)? as usize;
             if len == 0 {
                 if value.is_empty() {
-                    return Err(ProcessError::EmptyName);
+                    return Err(DnsError::EmptyName);
                 }
                 if value.len() > 255 {
-                    return Err(ProcessError::NameTooLong);
+                    return Err(DnsError::NameTooLong);
                 }
                 return Ok(Self(value));
             }
             if buf.readable().len() < len {
-                return Err(ProcessError::Truncated);
+                return Err(DnsError::Truncated);
             }
             let label_bytes = &buf.readable()[0..len];
-            let label = std::str::from_utf8(label_bytes).map_err(|_| ProcessError::InvalidLabel)?;
+            let label = std::str::from_utf8(label_bytes).map_err(|_| DnsError::InvalidLabel)?;
             if !Self::is_valid_label(label) {
-                return Err(ProcessError::InvalidLabel);
+                return Err(DnsError::InvalidLabel);
             }
             if !value.is_empty() {
                 value.push('.');
             }
             value.push_str(label);
         }
-        Err(ProcessError::TooManyLabels)
+        Err(DnsError::TooManyLabels)
     }
 
-    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), ProcessError> {
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         for label in self.0.split('.') {
             if label.len() > 63 {
                 unreachable!();
             }
             let len = u8::try_from(label.len()).unwrap();
             out.write_bytes(&[len])
-                .map_err(|_| ProcessError::ResponseBufferFull)?;
+                .map_err(|_| DnsError::ResponseBufferFull)?;
             out.write_bytes(label.as_bytes())
-                .map_err(|_| ProcessError::ResponseBufferFull)?;
+                .map_err(|_| DnsError::ResponseBufferFull)?;
         }
         out.write_bytes(&[0])
-            .map_err(|_| ProcessError::ResponseBufferFull)?;
+            .map_err(|_| DnsError::ResponseBufferFull)?;
         Ok(())
     }
 

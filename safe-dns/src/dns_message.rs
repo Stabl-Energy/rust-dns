@@ -1,5 +1,5 @@
 use crate::{
-    write_u16_be, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode, ProcessError,
+    write_u16_be, DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode,
     INTERNET_CLASS,
 };
 use fixed_buffer::FixedBuf;
@@ -12,16 +12,16 @@ pub struct DnsMessage {
     pub additional: Vec<DnsRecord>,
 }
 impl DnsMessage {
-    pub fn parse<const N: usize>(buf: FixedBuf<N>) -> Result<Self, ProcessError> {
+    pub fn parse<const N: usize>(buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let header = DnsMessageHeader::parse(buf)?;
         if header.answer_count != 0 {
-            return Err(ProcessError::QueryHasAnswer);
+            return Err(DnsError::QueryHasAnswer);
         }
         if header.name_server_count != 0 {
-            return Err(ProcessError::QueryHasNameServer);
+            return Err(DnsError::QueryHasNameServer);
         }
         if header.additional_count != 0 {
-            return Err(ProcessError::QueryHasAdditionalRecords);
+            return Err(DnsError::QueryHasAdditionalRecords);
         }
         // Questions
         let mut questions = Vec::with_capacity(header.question_count as usize);
@@ -38,7 +38,7 @@ impl DnsMessage {
         })
     }
 
-    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), ProcessError> {
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         self.header.write(out)?;
         if !self.questions.is_empty() {
             unimplemented!();

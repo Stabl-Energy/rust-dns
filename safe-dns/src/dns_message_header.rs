@@ -1,4 +1,4 @@
-use crate::{read_exact, write_u16_be, DnsOpCode, DnsResponseCode, ProcessError};
+use crate::{read_exact, write_u16_be, DnsError, DnsOpCode, DnsResponseCode};
 use fixed_buffer::FixedBuf;
 
 /// > 4.1.1. Header section format
@@ -79,7 +79,7 @@ pub struct DnsMessageHeader {
     pub additional_count: u16,
 }
 impl DnsMessageHeader {
-    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, ProcessError> {
+    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let bytes: [u8; 12] = read_exact(&mut buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
         let is_response = (bytes[2] >> 7) == 1;
@@ -109,20 +109,20 @@ impl DnsMessageHeader {
         })
     }
 
-    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), ProcessError> {
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
         let bytes: [u8; 2] = self.id.to_be_bytes();
         out.write_bytes(&bytes)
-            .map_err(|_| ProcessError::ResponseBufferFull)?;
+            .map_err(|_| DnsError::ResponseBufferFull)?;
         let b = ((self.is_response as u8) << 7)
             & (self.op_code.num() << 3)
             & ((self.authoritative_answer as u8) << 2)
             & ((self.truncated as u8) << 1)
             & (self.recursion_desired as u8);
         out.write_bytes(&[b])
-            .map_err(|_| ProcessError::ResponseBufferFull)?;
+            .map_err(|_| DnsError::ResponseBufferFull)?;
         let b = ((self.recursion_available as u8) << 7) & self.response_code.num();
         out.write_bytes(&[b])
-            .map_err(|_| ProcessError::ResponseBufferFull)?;
+            .map_err(|_| DnsError::ResponseBufferFull)?;
         for count in [
             self.question_count,
             self.answer_count,

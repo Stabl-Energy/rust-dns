@@ -1,4 +1,4 @@
-use crate::{DnsMessage, DnsName, DnsOpCode, DnsRecord, ProcessError};
+use crate::{DnsError, DnsMessage, DnsName, DnsOpCode, DnsRecord};
 use fixed_buffer::FixedBuf;
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -11,22 +11,22 @@ use std::time::Duration;
 pub fn process_request(
     name_to_record: &HashMap<&DnsName, &DnsRecord>,
     request: DnsMessage,
-) -> Result<DnsMessage, ProcessError> {
+) -> Result<DnsMessage, DnsError> {
     if request.header.is_response {
-        return Err(ProcessError::NotARequest);
+        return Err(DnsError::NotARequest);
     }
     if request.header.op_code != DnsOpCode::Query {
-        return Err(ProcessError::InvalidOpCode);
+        return Err(DnsError::InvalidOpCode);
     }
     // NOTE: We only answer the first question.
-    let question = request.questions.first().ok_or(ProcessError::NoQuestion)?;
+    let question = request.questions.first().ok_or(DnsError::NoQuestion)?;
     // TODO: Support multiple answers.
     // u16::try_from(self.questions.len()).map_err(|_| ProcessError::TooManyQuestions)?,
     let record = *name_to_record
         .get(&question.name)
-        .ok_or(ProcessError::NotFound)?;
+        .ok_or(DnsError::NotFound)?;
     if record.typ() != question.typ {
-        return Err(ProcessError::NotFound);
+        return Err(DnsError::NotFound);
     }
     Ok(request.answer_response(record.clone()))
 }
@@ -37,7 +37,7 @@ pub fn process_request(
 pub fn process_datagram(
     name_to_record: &HashMap<&DnsName, &DnsRecord>,
     bytes: FixedBuf<512>,
-) -> Result<FixedBuf<512>, ProcessError> {
+) -> Result<FixedBuf<512>, DnsError> {
     let request = DnsMessage::parse(bytes)?;
     let response = process_request(name_to_record, request)?;
     let mut out: FixedBuf<512> = FixedBuf::new();
