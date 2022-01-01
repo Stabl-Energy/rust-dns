@@ -1,4 +1,4 @@
-use crate::{read_exact, write_u16_be, DnsError, DnsOpCode, DnsResponseCode};
+use crate::{read_u16_be, read_u8, write_u16_be, DnsError, DnsOpCode, DnsResponseCode};
 use fixed_buffer::FixedBuf;
 
 /// > 4.1.1. Header section format
@@ -83,19 +83,20 @@ impl DnsMessageHeader {
     /// # Errors
     /// Returns an error when `buf` does not contain a valid message header.
     pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
-        let bytes: [u8; 12] = read_exact(buf)?;
-        let id = u16::from_be_bytes([bytes[0], bytes[1]]);
-        let is_response = (bytes[2] >> 7) == 1;
-        let op_code = DnsOpCode::new((bytes[2] >> 3) & 0xF);
-        let authoritative_answer = ((bytes[2] >> 2) & 1) == 1;
-        let truncated = ((bytes[2] >> 1) & 1) == 1;
-        let recursion_desired = (bytes[2] & 1) == 1;
-        let recursion_available = (bytes[3] >> 7) == 1;
-        let response_code = DnsResponseCode::new(bytes[3] & 0xF);
-        let question_count = u16::from_be_bytes([bytes[4], bytes[5]]);
-        let answer_count = u16::from_be_bytes([bytes[6], bytes[7]]);
-        let name_server_count = u16::from_be_bytes([bytes[8], bytes[9]]);
-        let additional_count = u16::from_be_bytes([bytes[10], bytes[11]]);
+        let id = read_u16_be(buf)?;
+        let b = read_u8(buf)?;
+        let is_response = (b >> 7) == 1;
+        let op_code = DnsOpCode::new((b >> 3) & 0xF);
+        let authoritative_answer = ((b >> 2) & 1) == 1;
+        let truncated = ((b >> 1) & 1) == 1;
+        let recursion_desired = (b & 1) == 1;
+        let b = read_u8(buf)?;
+        let recursion_available = (b >> 7) == 1;
+        let response_code = DnsResponseCode::new(b & 0xF);
+        let question_count = read_u16_be(buf)?;
+        let answer_count = read_u16_be(buf)?;
+        let name_server_count = read_u16_be(buf)?;
+        let additional_count = read_u16_be(buf)?;
         Ok(Self {
             id,
             is_response,
