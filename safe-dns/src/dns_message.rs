@@ -38,8 +38,11 @@ impl DnsMessage {
         }
         let mut additional = Vec::with_capacity(header.additional_count as usize);
         for _ in 0..header.additional_count {
-            let record = DnsRecord::read(buf)?;
-            additional.push(record);
+            match DnsRecord::read(buf) {
+                Ok(record) => additional.push(record),
+                // Ignore invalid additional records.
+                Err(_) => {}
+            }
         }
         Ok(Self {
             header,
