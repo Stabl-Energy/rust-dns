@@ -111,9 +111,6 @@ impl DnsName {
         for _ in 0..63 {
             let len = read_u8(buf)? as usize;
             if len == 0 {
-                if value.is_empty() {
-                    return Err(DnsError::EmptyName);
-                }
                 if value.len() > 255 {
                     return Err(DnsError::NameTooLong);
                 }
