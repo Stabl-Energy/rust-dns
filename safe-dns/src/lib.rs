@@ -40,6 +40,7 @@
 //!
 #![forbid(unsafe_code)]
 
+mod dns_class;
 mod dns_message;
 mod dns_message_header;
 mod dns_name;
@@ -72,8 +73,19 @@ fn read_exact<const N: usize, const M: usize>(buf: &mut FixedBuf<N>) -> Result<[
     Ok(result)
 }
 
-fn read_byte<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, DnsError> {
+fn read_u8<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, DnsError> {
     buf.try_read_byte().ok_or(DnsError::Truncated)
+}
+
+fn write_u8<const N: usize>(out: &mut FixedBuf<N>, value: u8) -> Result<(), DnsError> {
+    out.write_bytes(&[value])
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
+fn read_u16_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u16, DnsError> {
+    let bytes: [u8; 2] = read_exact(buf)?;
+    Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
 }
 
 fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), DnsError> {
@@ -83,7 +95,7 @@ fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(),
     Ok(())
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DnsError {
     EmptyName,
     InvalidClass,

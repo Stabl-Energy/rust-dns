@@ -1,11 +1,8 @@
-use crate::{read_byte, DnsError};
+use crate::{read_u8, DnsError};
 use core::convert::TryFrom;
 use core::fmt::{Display, Formatter};
 use fixed_buffer::FixedBuf;
 
-/// A name that conforms to the conventions in
-/// [RFC 1035](https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1):
-///
 /// > 2.3.1. Preferred name syntax
 /// >
 /// > The DNS specifications attempt to be as general as possible in the rules for constructing
@@ -53,6 +50,18 @@ use fixed_buffer::FixedBuf;
 /// > For example, the following strings identify hosts in the Internet:
 /// >
 /// > `A.ISI.EDU XX.LCS.MIT.EDU SRI-NIC.ARPA`
+///
+/// <https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1>
+///
+/// > Various objects and parameters in the DNS have size limits.  They are listed below.  Some
+/// > could be easily changed, others are more fundamental.
+/// >
+/// > - labels: 63 octets or less
+/// > - names: 255 octets or less
+/// > - TTL: positive values of a signed 32 bit number.
+/// > - UDP messages: 512 octets or less
+///
+/// <https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4>
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DnsName(String);
 impl DnsName {
@@ -98,7 +107,7 @@ impl DnsName {
     pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<DnsName, DnsError> {
         let mut value = String::new();
         for _ in 0..63 {
-            let len = read_byte(buf)? as usize;
+            let len = read_u8(buf)? as usize;
             if len == 0 {
                 if value.is_empty() {
                     return Err(DnsError::EmptyName);

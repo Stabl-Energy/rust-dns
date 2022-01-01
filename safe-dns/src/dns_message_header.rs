@@ -79,7 +79,7 @@ pub struct DnsMessageHeader {
     pub additional_count: u16,
 }
 impl DnsMessageHeader {
-    pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
+    pub fn read<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let bytes: [u8; 12] = read_exact(&mut buf)?;
         let id = u16::from_be_bytes([bytes[0], bytes[1]]);
         let is_response = (bytes[2] >> 7) == 1;

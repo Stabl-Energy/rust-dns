@@ -13,7 +13,7 @@ pub struct DnsMessage {
 }
 impl DnsMessage {
     pub fn parse<const N: usize>(buf: FixedBuf<N>) -> Result<Self, DnsError> {
-        let header = DnsMessageHeader::parse(buf)?;
+        let header = DnsMessageHeader::read(buf)?;
         if header.answer_count != 0 {
             return Err(DnsError::QueryHasAnswer);
         }

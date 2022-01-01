@@ -1,3 +1,6 @@
+use crate::{read_u16_be, write_u16_be, DnsError};
+use fixed_buffer::FixedBuf;
+
 /// > TYPE fields are used in resource records.  Note that these types are a subset of QTYPEs.
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc1035#section-3.2.2>
@@ -45,6 +48,7 @@ impl DnsType {
             other => DnsType::Unknown(other),
         }
     }
+
     pub fn num(&self) -> u16 {
         match self {
             DnsType::A => 1,
@@ -57,5 +61,13 @@ impl DnsType {
             DnsType::TXT => 16,
             DnsType::Unknown(other) => *other,
         }
+    }
+
+    pub fn read<const N: usize>(buf: &mut FixedBuf<N>) -> Result<Self, DnsError> {
+        Ok(Self::new(read_u16_be(buf)?))
+    }
+
+    pub fn write<const N: usize>(&self, out: &mut FixedBuf<N>) -> Result<(), DnsError> {
+        write_u16_be(out, self.num())
     }
 }

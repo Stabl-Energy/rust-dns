@@ -1,6 +1,24 @@
+use crate::dns_class::DnsClass;
 use crate::{read_exact, DnsError, DnsName, DnsType, ANY_CLASS, INTERNET_CLASS};
 use fixed_buffer::FixedBuf;
 
+/// > The question section is used to carry the "question" in most queries, i.e., the parameters
+/// > that define what is being asked.  The section contains QDCOUNT (usually 1) entries, each of
+/// > the following format:
+/// >
+/// > ```text
+/// >                                 1  1  1  1  1  1
+/// >   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                                               |
+/// > /                     QNAME                     /
+/// > /                                               /
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                     QTYPE                     |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > |                     QCLASS                    |
+/// > +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+/// > ```
 #[derive(Debug, PartialEq)]
 pub struct DnsQuestion {
     pub name: DnsName,
@@ -9,10 +27,9 @@ pub struct DnsQuestion {
 impl DnsQuestion {
     pub fn parse<const N: usize>(mut buf: FixedBuf<N>) -> Result<Self, DnsError> {
         let name = DnsName::read(&mut buf)?;
-        let bytes: [u8; 4] = read_exact(&mut buf)?;
-        let typ = DnsType::new(u16::from_be_bytes([bytes[0], bytes[1]]));
-        let class = u16::from_be_bytes([bytes[2], bytes[3]]);
-        if class != INTERNET_CLASS && class != ANY_CLASS {
+        let typ = DnsType::read(&mut buf)?;
+        let class = DnsClass::read(&mut buf)?;
+        if class != DnsClass::Internet && class != DnsClass::Any {
             return Err(DnsError::InvalidClass);
         }
         Ok(DnsQuestion { name, typ })
