@@ -175,6 +175,7 @@ impl DnsRecord {
             | DnsType::PTR
             | DnsType::SOA
             | DnsType::TXT
+            | DnsType::ANY
             | DnsType::Unknown(_) => Ok(DnsRecord::Unknown(name, typ)),
         }
     }

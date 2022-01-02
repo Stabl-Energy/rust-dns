@@ -74,7 +74,12 @@ impl DnsMessage {
 
     /// # Errors
     /// Returns an error when there are more than 65,536 questions.
-    pub fn answer_response(&self, answer: DnsRecord) -> Result<Self, DnsError> {
+    pub fn answer_response<'x>(
+        &self,
+        answers: impl Iterator<Item = &'x DnsRecord>,
+    ) -> Result<Self, DnsError> {
+        let answers: Vec<DnsRecord> = answers.cloned().collect();
+        let answer_count = u16::try_from(answers.len()).map_err(|_| DnsError::TooManyAnswers)?;
         Ok(Self {
             header: DnsMessageHeader {
                 id: self.header.id,
@@ -86,12 +91,12 @@ impl DnsMessage {
                 recursion_available: false,
                 response_code: DnsResponseCode::NoError,
                 question_count: self.question_count()?,
-                answer_count: 1,
+                answer_count,
                 name_server_count: 0,
                 additional_count: 0,
             },
             questions: self.questions.clone(),
-            answers: vec![answer],
+            answers,
             name_servers: Vec::new(),
             additional: Vec::new(),
         })

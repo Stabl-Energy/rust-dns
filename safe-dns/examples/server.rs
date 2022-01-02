@@ -13,7 +13,7 @@ fn main() {
     println!("Bound UDP socket {}", addr.port());
     let records = vec![
         DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap(),
-        // DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
+        DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
         DnsRecord::new_cname("bbb.example.com", "ccc.example.com").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {

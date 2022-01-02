@@ -1,6 +1,6 @@
-use crate::{DnsError, DnsMessage, DnsName, DnsOpCode, DnsRecord};
+use crate::{DnsError, DnsMessage, DnsName, DnsOpCode, DnsRecord, DnsType};
 use fixed_buffer::FixedBuf;
-use std::collections::HashMap;
+use multimap::MultiMap;
 use std::io::ErrorKind;
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use std::time::Duration;
 /// Returns `Err` when the request is malformed or the server is not configured to answer the
 /// request.
 pub fn process_request(
-    name_to_record: &HashMap<&DnsName, &DnsRecord>,
+    name_to_records: &MultiMap<&DnsName, &DnsRecord>,
     request: &DnsMessage,
 ) -> Result<DnsMessage, DnsError> {
     if request.header.is_response {
@@ -20,13 +20,19 @@ pub fn process_request(
     // NOTE: We only answer the first question.
     let question = request.questions.first().ok_or(DnsError::NoQuestion)?;
     // u16::try_from(self.questions.len()).map_err(|_| ProcessError::TooManyQuestions)?,
-    let record = *name_to_record
-        .get(&question.name)
+    let records = name_to_records
+        .get_vec(&question.name)
         .ok_or(DnsError::NotFound)?;
-    if record.typ() != question.typ {
-        return Err(DnsError::NotFound);
+    if question.typ == DnsType::ANY {
+        request.answer_response(records.iter().copied())
+    } else {
+        request.answer_response(
+            records
+                .iter()
+                .filter(|record| record.typ() == question.typ)
+                .copied(),
+        )
     }
-    request.answer_response(record.clone())
 }
 
 /// # Errors
@@ -34,17 +40,21 @@ pub fn process_request(
 /// request.
 #[allow(clippy::implicit_hasher)]
 pub fn process_datagram(
-    name_to_record: &HashMap<&DnsName, &DnsRecord>,
+    name_to_records: &MultiMap<&DnsName, &DnsRecord>,
     bytes: &mut FixedBuf<512>,
 ) -> Result<FixedBuf<512>, DnsError> {
+    //println!("process_datagram: bytes = {:?}", bytes.readable());
     let request = DnsMessage::read(bytes)?;
-    let response = process_request(name_to_record, &request)?;
+    //println!("process_datagram: request = {:?}", request);
+    let response = process_request(name_to_records, &request)?;
+    //println!("process_datagram: response = {:?}", response);
     let mut out: FixedBuf<512> = FixedBuf::new();
     response.write(&mut out)?;
+    //println!("process_datagram: out = {:?}", out.readable());
     Ok(out)
 }
 
-pub fn make_name_to_record(records: &[DnsRecord]) -> HashMap<&DnsName, &DnsRecord> {
+pub fn make_name_to_records(records: &[DnsRecord]) -> MultiMap<&DnsName, &DnsRecord> {
     records.iter().map(|x| (x.name(), x)).collect()
 }
 
@@ -60,7 +70,7 @@ pub fn serve_udp(
     let local_addr = sock
         .local_addr()
         .map_err(|e| format!("error getting socket local address: {}", e))?;
-    let name_to_record = make_name_to_record(records);
+    let name_to_records = make_name_to_records(records);
     while !permit.is_revoked() {
         // > Messages carried by UDP are restricted to 512 bytes (not counting the IP
         // > or UDP headers).  Longer messages are truncated and the TC bit is set in
@@ -79,7 +89,7 @@ pub fn serve_udp(
             }
             Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
         };
-        let out = match process_datagram(&name_to_record, &mut buf) {
+        let out = match process_datagram(&name_to_records, &mut buf) {
             Ok(buf) => buf,
             Err(e) => {
                 println!("dropping bad request: {:?}", e);
@@ -123,6 +133,6 @@ fn test_process_datagram() {
         0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x2C, 0x00, 0x04, 10, 0, 0, 1_u8,
     ];
     let records = [DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap()];
-    let response = process_datagram(&make_name_to_record(&records), &mut buf).unwrap();
+    let response = process_datagram(&make_name_to_records(&records), &mut buf).unwrap();
     assert_eq!(expected_response, response.readable());
 }

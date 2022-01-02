@@ -33,6 +33,7 @@ pub enum DnsType {
     SOA,
     /// Text string
     TXT,
+    ANY,
     Unknown(u16),
 }
 impl DnsType {
@@ -47,6 +48,7 @@ impl DnsType {
             12 => DnsType::PTR,
             6 => DnsType::SOA,
             16 => DnsType::TXT,
+            255 => DnsType::ANY,
             other => DnsType::Unknown(other),
         }
     }
@@ -62,6 +64,7 @@ impl DnsType {
             DnsType::PTR => 12,
             DnsType::SOA => 6,
             DnsType::TXT => 16,
+            DnsType::ANY => 255,
             DnsType::Unknown(other) => *other,
         }
     }
@@ -89,6 +92,7 @@ impl Display for DnsType {
             DnsType::PTR => write!(f, "PTR"),
             DnsType::SOA => write!(f, "SOA"),
             DnsType::TXT => write!(f, "TXT"),
+            DnsType::ANY => write!(f, "ANY"),
             DnsType::Unknown(n) => write!(f, "Unknown({})", n),
         }
     }
