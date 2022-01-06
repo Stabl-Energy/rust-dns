@@ -1,0 +1,16 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["network-programming"]
+description = "Detect overload and fairly shed load from diverse IPs, subnets, users, or systems.  Prevent denial-of-service (DoS) attacks."
+edition = "2018"
+keywords = ["fair", "rate", "limit", "throttle", "dos"]
+license = "Apache-2.0"
+name = "fair-ratelimit"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+oorandom = "11.1.3"
+
+[dev-dependencies]
