@@ -61,7 +61,10 @@ use std::time::Instant;
 pub use ip_subnet::IpSubnet;
 
 const HORIZON_DURATION: Duration = Duration::from_secs(10);
-const TICK_DURATION: Duration = Duration::from_millis((HORIZON_DURATION.as_millis() / 10) as u64);
+const TICKS: usize = 10;
+const TICK_DURATION: Duration =
+    Duration::from_millis((HORIZON_DURATION.as_millis() / (TICKS as u128)) as u64);
+const MAX_KEYS: usize = 100;
 
 fn right_shift<T: Clone + Default>(slice: &mut [T], n: usize) {
     if n == 0 {
@@ -105,6 +108,53 @@ impl SaturatingAddAssign<u32> for u32 {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct RecentCosts {
+    costs: [u32; TICKS],
+    last: Instant,
+}
+impl RecentCosts {
+    #[must_use]
+    pub fn new(now: Instant) -> Self {
+        Self {
+            costs: [0_u32; TICKS],
+            last: now,
+        }
+    }
+
+    pub fn add(&mut self, cost: u32) {
+        self.costs[0].saturating_add_assign(cost);
+    }
+
+    pub fn update(&mut self, now: Instant) {
+        let elapsed = now.saturating_duration_since(self.last);
+        let elapsed_ticks = (elapsed.as_millis() / TICK_DURATION.as_millis()) as u32;
+        self.last = self.last + (TICK_DURATION * elapsed_ticks);
+        right_shift(&mut self.costs, elapsed_ticks as usize);
+    }
+
+    #[must_use]
+    pub fn recent_cost(&self) -> u32 {
+        self.costs
+            .iter()
+            .fold(0_u32, |acc, elem| acc.saturating_add(*elem))
+    }
+
+    /// Returns recent load divided by max cost.
+    /// The result is always in 0..=1.0.
+    #[must_use]
+    pub fn recent_load(&self, max_cost: u32) -> f32 {
+        if max_cost == 0 {
+            return 1.0;
+        }
+        let recent_cost = self.recent_cost();
+        if recent_cost >= max_cost {
+            return 1.0;
+        }
+        (recent_cost as f32) / (max_cost as f32)
+    }
+}
+
 /// Features:
 /// - Probabilistically rejects requests.
 ///   Normal overload causes an increase in latency as clients retry.
@@ -119,36 +169,26 @@ impl SaturatingAddAssign<u32> for u32 {
 #[derive(Clone, Debug)]
 pub struct RateLimiter {
     max_cost: u32,
-    last: Instant,
     prng: Rand32,
-    global_costs: [u32; 10],
-    source_costs: HashMap<u32, [u32; 10]>,
+    global_costs: RecentCosts,
+    keys: HashMap<u32, usize>,
+    costs: [RecentCosts; MAX_KEYS],
 }
 impl RateLimiter {
     #[must_use]
     pub fn new(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
         Self {
             max_cost: (((max_cost_per_sec as u128) * HORIZON_DURATION.as_millis()) / 1_000) as u32,
-            last: now,
             prng,
-            global_costs: [0_u32; 10],
-            source_costs: HashMap::new(),
+            global_costs: RecentCosts::new(now),
+            keys: HashMap::new(),
+            costs: [RecentCosts::new(now); MAX_KEYS],
         }
     }
 
     pub fn check(&mut self, key: u32, cost: u32, now: Instant) -> bool {
-        let elapsed = now.saturating_duration_since(self.last);
-        let elapsed_ticks = (elapsed.as_millis() / TICK_DURATION.as_millis()) as u32;
-        self.last = self.last + (TICK_DURATION * elapsed_ticks);
-        right_shift(&mut self.global_costs, elapsed_ticks as usize);
-        let recent_cost = self
-            .global_costs
-            .iter()
-            .fold(0_u32, |acc, elem| acc.saturating_add(*elem));
-        if self.max_cost == 0 {
-            return false;
-        }
-        let recent_load = (recent_cost as f32) / (self.max_cost as f32) /* should be in 0..1.0 */;
+        self.global_costs.update(now);
+        let recent_load = self.global_costs.recent_load(self.max_cost);
         let linear_reject_prob = (recent_load - 0.75) * 4.0 /* should be in 0..1.0 */;
         // Using the linear probability of rejection, a single client utilizes 83% of max.
         // Raising the linear probability to the 2nd power, increases it to 88%.
@@ -158,7 +198,7 @@ impl RateLimiter {
                 return false;
             }
         }
-        self.global_costs[0].saturating_add_assign(cost);
+        self.global_costs.add(cost);
         true
     }
 }
