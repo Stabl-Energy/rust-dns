@@ -148,10 +148,15 @@ impl RateLimiter {
         if self.max_cost == 0 {
             return false;
         }
-        let recent_load = (recent_cost as f32) / (self.max_cost as f32);
-        let reject_prob = (recent_load - 0.75) * 4.0;
-        if reject_prob > 0.0 && self.prng.rand_float() < reject_prob {
-            return false;
+        let recent_load = (recent_cost as f32) / (self.max_cost as f32) /* should be in 0..1.0 */;
+        let linear_reject_prob = (recent_load - 0.75) * 4.0 /* should be in 0..1.0 */;
+        // Using the linear probability of rejection, a single client utilizes 83% of max.
+        // Raising the linear probability to the 2nd power, increases it to 88%.
+        if linear_reject_prob > 0.0 {
+            let reject_prob = linear_reject_prob.powi(2);
+            if self.prng.rand_float() < reject_prob {
+                return false;
+            }
         }
         self.global_costs[0].saturating_add_assign(cost);
         true

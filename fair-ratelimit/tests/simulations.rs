@@ -153,17 +153,17 @@ fn test_four_clients() {
             Rc::clone(&client3),
         ],
     );
-    assert_contains!(2000..3000, client0.borrow().accepted_requests);
-    assert_contains!(2000..3000, client1.borrow().accepted_requests);
-    assert_contains!(2000..3000, client2.borrow().accepted_requests);
-    assert_contains!(2000..3000, client3.borrow().accepted_requests);
     assert_contains!(
-        9000..10_000,
+        9000..=10_000,
         client0.borrow().accepted_requests
             + client1.borrow().accepted_requests
             + client2.borrow().accepted_requests
             + client3.borrow().accepted_requests
     );
+    assert_contains!(2000..=3000, client0.borrow().accepted_requests);
+    assert_contains!(2000..=3000, client1.borrow().accepted_requests);
+    assert_contains!(2000..=3000, client2.borrow().accepted_requests);
+    assert_contains!(2000..=3000, client3.borrow().accepted_requests);
 }
 
 #[test]
@@ -180,6 +180,24 @@ fn test_client_and_long_tail() {
         &mut limiter,
         &[Rc::clone(&client), Rc::clone(&longtail)],
     );
-    assert_contains!(4900..5000, client.borrow().accepted_requests);
-    assert_contains!(4900..5000, longtail.borrow().accepted_requests);
+    assert_contains!(4250..4750, client.borrow().accepted_requests);
+    assert_contains!(4250..4750, longtail.borrow().accepted_requests);
+}
+
+#[test]
+fn test_client_and_long_tail_overload() {
+    let mut limiter = RateLimiter::new(10, Rand32::new(1), Instant::now());
+    let client = Rc::new(RefCell::new(Client::new(Key::Static(0), 10, 1)));
+    let longtail = Rc::new(RefCell::new(Client::new(
+        Key::Random(Cell::new(Rand32::new(2))),
+        10,
+        1,
+    )));
+    simulate(
+        1000,
+        &mut limiter,
+        &[Rc::clone(&client), Rc::clone(&longtail)],
+    );
+    assert_contains!(4500..=5000, client.borrow().accepted_requests);
+    assert_contains!(4500..=5000, longtail.borrow().accepted_requests);
 }
