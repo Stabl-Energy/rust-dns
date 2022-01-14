@@ -30,6 +30,18 @@
 //! ## Limitations
 //!
 //! ## Alternatives
+//! - [governor](https://crates.io/crates/governor)
+//!   - Popular
+//!   - Lots of features
+//!   - Good docs
+//!   - Unnecessary `unsafe`
+//!   - Uses non-standard mutex library [`parking_lot`](https://crates.io/crates/parking_lot)
+//! - [r8limit](https://crates.io/crates/r8limit)
+//!   - Simple
+//!   - No `unsafe` or deps
+//! - [leaky-bucket](https://crates.io/crates/leaky-bucket)
+//!   - Async tasks can wait for their turn to use a resource.
+//!   - Unsuitable for load shedding.
 //!
 //! ## Related Crates
 //! - [safe-dns](https://crates.io/crates/safe-dns) uses this
