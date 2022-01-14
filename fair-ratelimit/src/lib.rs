@@ -75,6 +75,30 @@ fn right_shift<T: Clone + Default>(slice: &mut [T], n: usize) {
     slice[0..n].fill(Default::default());
 }
 
+#[cfg(test)]
+#[test]
+fn test_right_shift() {
+    fn check(mut input: &mut [u8], n: usize, expected_output: &[u8]) {
+        right_shift(&mut input, n);
+        assert_eq!(expected_output, input);
+    }
+    check(&mut [], 0, &[]);
+    check(&mut [], 1, &[]);
+    check(&mut [], 11, &[]);
+    check(&mut [1], 0, &[1]);
+    check(&mut [1], 1, &[0]);
+    check(&mut [1], 11, &[0]);
+    check(&mut [1, 2], 0, &[1, 2]);
+    check(&mut [1, 2], 1, &[0, 1]);
+    check(&mut [1, 2], 11, &[0, 0]);
+    check(&mut [1, 2, 3], 0, &[1, 2, 3]);
+    check(&mut [1, 2, 3], 1, &[0, 1, 2]);
+    check(&mut [1, 2, 3], 11, &[0, 0, 0]);
+    check(&mut [1, 2, 3, 4, 5], 0, &[1, 2, 3, 4, 5]);
+    check(&mut [1, 2, 3, 4, 5], 1, &[0, 1, 2, 3, 4]);
+    check(&mut [1, 2, 3, 4, 5], 3, &[0, 0, 0, 1, 2]);
+}
+
 fn saturating_f32_to_usize(x: f32) -> usize {
     if x == f32::NAN {
         0
