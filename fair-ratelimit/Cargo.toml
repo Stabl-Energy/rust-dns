@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["network-programming"]
 description = "Detect overload and fairly shed load from diverse IPs, subnets, users, or systems.  Prevent denial-of-service (DoS) attacks."
-edition = "2018"
+edition = "2021"
 keywords = ["fair", "rate", "limit", "throttle", "dos"]
 license = "Apache-2.0"
 name = "fair-ratelimit"
