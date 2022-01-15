@@ -144,6 +144,43 @@ impl SaturatingAddAssign<u32> for u32 {
     }
 }
 
+fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) -> bool {
+    // Value is in [0.0, 1.0).
+    let load = if max_cost == 0 || recent_cost >= max_cost {
+        return false;
+    } else {
+        (recent_cost as f32) / (max_cost as f32)
+    };
+    // Value is in (-inf, 1.0).
+    let linear_reject_prob = (load - 0.75) * 4.0;
+    if linear_reject_prob <= 0.0 {
+        return true;
+    }
+    let reject_prob = linear_reject_prob.powi(2);
+    reject_prob < rand_float()
+}
+
+#[cfg(test)]
+#[test]
+fn test_decide() {
+    assert!(!decide(0, 0, || unreachable!()));
+    assert!(decide(0, 100, || unreachable!()));
+    assert!(decide(50, 100, || unreachable!()));
+    assert!(decide(75, 100, || unreachable!()));
+    assert!(decide(76, 100, || 0.999999));
+    assert!(!decide(76, 100, || 0.0));
+    assert!(!decide(85, 100, || 0.15));
+    assert!(decide(85, 100, || 0.17));
+    assert!(!decide(90, 100, || 0.35));
+    assert!(decide(90, 100, || 0.37));
+    assert!(!decide(95, 100, || 0.63));
+    assert!(decide(95, 100, || 0.65));
+    assert!(!decide(99, 100, || 0.92));
+    assert!(decide(99, 100, || 0.93));
+    assert!(!decide(100, 100, || unreachable!()));
+    assert!(!decide(101, 100, || unreachable!()));
+}
+
 #[derive(Clone, Copy, Debug)]
 struct RecentCosts {
     costs: [u32; TICKS],
