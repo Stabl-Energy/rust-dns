@@ -116,10 +116,13 @@ macro_rules! assert_contains {
 }
 
 #[test]
-fn test_single_request() {
+fn test_simple() {
     let now = Instant::now();
     let mut limiter = RateLimiter::new(125, Rand32::new(1), now);
-    assert!(limiter.check(0, 1, now));
+    assert!(limiter.check(0, 99, now));
+    assert!(limiter.check(1, 99, now));
+    assert!(!limiter.check(0, 1, now));
+    assert!(!limiter.check(0, 1, now));
 }
 
 #[test]
@@ -170,21 +173,26 @@ fn test_single_client() {
 fn test_four_clients() {
     let mut clock = Instant::now();
     let mut limiter = RateLimiter::new(125, Rand32::new(1), Instant::now());
-    for ((rps0, rps1, rps2, rps3), exp_sum, (exp0, exp1, exp2, exp3)) in [
+    for ((rps0, rps1, rps2, rps3), (exp0, exp1, exp2, exp3), exp_sum) in [
+        (
+            (50, 25, 5, 1),
+            (5000..=5000, 2500..=2500, 500..=500, 100..=100),
+            8000..=8500,
+        ),
         (
             (100, 50, 10, 1),
-            9000..=10_000,
             (5000..=5500, 3500..=4000, 1000..=1000, 100..=100),
+            9000..=10_000,
         ),
         (
             (200, 100, 20, 2),
+            (4500..=5000, 3000..=4000, 2000..=2000, 200..=200),
             9000..=11_000,
-            (4500..=5000, 3000..=4000, 1500..=2000, 200..=200),
         ),
         (
             (200, 200, 200, 17),
-            9000..=11_000,
             (2500..=3500, 2500..=3500, 2500..=3500, 1700..=1701),
+            9000..=11_000,
         ),
     ] {
         let client0 = Rc::new(RefCell::new(Client::new(Key::Static(0), rps0, 1)));
@@ -197,6 +205,10 @@ fn test_four_clients() {
             100,
             &[&client0, &client1, &client2, &client3],
         );
+        assert_contains!(exp0, client0.borrow().accepted_requests);
+        assert_contains!(exp1, client1.borrow().accepted_requests);
+        assert_contains!(exp2, client2.borrow().accepted_requests);
+        assert_contains!(exp3, client3.borrow().accepted_requests);
         assert_contains!(
             exp_sum,
             client0.borrow().accepted_requests
@@ -204,10 +216,6 @@ fn test_four_clients() {
                 + client2.borrow().accepted_requests
                 + client3.borrow().accepted_requests
         );
-        assert_contains!(exp0, client0.borrow().accepted_requests);
-        assert_contains!(exp1, client1.borrow().accepted_requests);
-        assert_contains!(exp2, client2.borrow().accepted_requests);
-        assert_contains!(exp3, client3.borrow().accepted_requests);
     }
 }
 
@@ -215,21 +223,21 @@ fn test_four_clients() {
 fn test_client_and_longtail() {
     let mut clock = Instant::now();
     let mut limiter = RateLimiter::new(125, Rand32::new(1), Instant::now());
-    for ((rps_client, rps_longtail), exp_sum, (exp_client, exp_longtail)) in [
+    for ((rps_client, rps_longtail), (exp_client, exp_longtail), exp_sum) in [
         (
             (25, 25),
-            50_000..=50_000,
             (25_000..=25_000, 25_000..=25_000),
+            50_000..=50_000,
         ),
         (
             (75, 50),
-            80_000..=100_000,
-            (40_000..=50_000, 40_000..=50_000),
+            (49_000..=51_000, 49_000..=51_000),
+            99_000..=101_000,
         ),
         (
             (100, 100),
-            125_000..=130_000,
-            (25_000..=30_000, 95_000..=100_000),
+            (29_000..=32_000, 95_000..=100_000),
+            129_000..=131_000,
         ),
     ] {
         let client = Rc::new(RefCell::new(Client::new(Key::Static(0), rps_client, 1)));
@@ -239,11 +247,11 @@ fn test_client_and_longtail() {
             1,
         )));
         simulate(&mut limiter, &mut clock, 1000, &[&client, &longtail]);
+        assert_contains!(exp_client, client.borrow().accepted_requests);
+        assert_contains!(exp_longtail, longtail.borrow().accepted_requests);
         assert_contains!(
             exp_sum,
             client.borrow().accepted_requests + longtail.borrow().accepted_requests
         );
-        assert_contains!(exp_client, client.borrow().accepted_requests);
-        assert_contains!(exp_longtail, longtail.borrow().accepted_requests);
     }
 }

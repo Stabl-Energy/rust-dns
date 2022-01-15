@@ -68,6 +68,7 @@ mod ip_subnet;
 
 use core::time::Duration;
 use oorandom::Rand32;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -242,26 +243,22 @@ pub struct RateLimiter {
     other_max: u32,
     prng: Rand32,
     sources_costs: RecentCosts,
+    // TODO: Look at using a custom data structure
+    //  - https://crates.io/crates/linked-hash-map
+    //  - https://crates.io/crates/hashlink
+    //  - https://crates.io/crates/ritelinked
+    //  - https://docs.rs/governor/0.4.0/governor/state/keyed/trait.ShrinkableKeyedStateStore.html
     keys: HashMap<u32, usize>,
     sources: [Option<Source>; MAX_KEYS],
     other_costs: RecentCosts,
 }
 impl RateLimiter {
-    fn calculate_max_cost(max_per_tick: u32) -> u32 {
-        let mut value: u32 = 0;
-        for _ in 0..33 {
-            value >>= 1;
-            value = value.saturating_add(max_per_tick);
-        }
-        value
-    }
-
     #[must_use]
     pub fn new(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
         // TODO: Ensure that values are not too small.
         let max_per_tick = ((max_cost_per_sec as u128) * TICK_DURATION.as_millis() / 1_000) as f32;
-        let sources_max = Self::calculate_max_cost((max_per_tick * 0.80) as u32);
-        let other_max = Self::calculate_max_cost((max_per_tick * 0.20) as u32);
+        let sources_max = (max_per_tick * 0.80 * 2.0) as u32;
+        let other_max = (max_per_tick * 0.20 * 2.0) as u32;
         Self {
             sources_max,
             other_max,
@@ -273,72 +270,72 @@ impl RateLimiter {
         }
     }
 
-    fn update(&mut self, key: u32, now: Instant) {
-        if let Some(index) = self.keys.get(&key) {
-            let source = self.sources[*index].as_mut().unwrap();
-            source.costs.update(now);
-            if source.costs.is_empty() {
-                self.sources[*index] = None;
-                self.keys.remove(&key);
-            }
-        }
-    }
-
-    fn add(&mut self, key: u32, cost: u32, now: Instant) {
-        if let Some(index) = self.keys.get(&key) {
-            self.sources[*index].as_mut().unwrap().costs.add(cost);
-            return;
-        }
-        // Source is unknown.  Try to add it.
-        let index = self.prng.rand_range(0..(MAX_KEYS as u32)) as usize;
-        if let Some(source) = &mut self.sources[index] {
-            source.costs.update(now);
-            // With a small probability, multiply cost by a large coefficient.
-            // This lets a busy source eventually get a spot in a full table.
-            let coefficient: u32 = match self.prng.rand_range(0..10_000u32) {
-                0 => 10_000,
-                x if x < 10 => 1_000,
-                x if x < 100 => 100,
-                x if x < 1000 => 10,
-                _ => 1,
-            };
-            let adjusted_cost = coefficient.saturating_mul(cost);
-            if adjusted_cost < source.costs.recent_cost() {
-                // Do not evict entry.  This source will remain unknown.
-                self.other_costs.add(cost);
-                return;
-            }
-            // Evict entry.
-            self.keys.remove(&source.key);
-        }
-        // Remember source.
-        self.keys.insert(key, index);
-        let mut new_source = Source::new(key, now);
-        new_source.costs.add(cost);
-        self.sources[index] = Some(new_source);
-    }
-
     pub fn check(&mut self, key: u32, cost: u32, now: Instant) -> bool {
         self.sources_costs.update(now);
-        self.update(key, now);
-        let (recent_cost, max_cost) = if let Some(index) = self.keys.get(&key) {
-            let recent_cost = self.sources[*index].as_ref().unwrap().costs.recent_cost();
-            let max_cost = max_cost(
-                self.sources_max,
-                self.sources_costs.recent_cost(),
-                self.keys.len() as u32,
-            );
-            (recent_cost, max_cost)
-        } else {
-            self.other_costs.update(now);
-            (self.other_costs.recent_cost(), self.other_max)
-        };
-        if decide(recent_cost, max_cost, || self.prng.rand_float()) {
-            self.sources_costs.add(cost);
-            self.add(key, cost, now);
-            true
-        } else {
-            false
+        let num_keys = self.keys.len() as u32;
+        match self.keys.entry(key) {
+            Entry::Occupied(entry) => {
+                let index = *entry.get();
+                let source = self.sources[index].as_mut().unwrap();
+                source.costs.update(now);
+                let max_cost =
+                    max_cost(self.sources_max, self.sources_costs.recent_cost(), num_keys);
+                if decide(source.costs.recent_cost(), max_cost, || {
+                    self.prng.rand_float()
+                }) {
+                    self.sources_costs.add(cost);
+                    source.costs.add(cost);
+                    true
+                } else {
+                    if source.costs.is_empty() {
+                        entry.remove();
+                        self.sources[index] = None;
+                    }
+                    return false;
+                }
+            }
+            Entry::Vacant(entry) => {
+                self.other_costs.update(now);
+                let recent_cost = self.other_costs.recent_cost();
+                if !decide(recent_cost, self.other_max, || self.prng.rand_float()) {
+                    return false;
+                }
+                let mut new_source = Source::new(key, now);
+                new_source.costs.add(cost);
+                let index = self.prng.rand_range(0..(MAX_KEYS as u32)) as usize;
+                if let Some(source) = &mut self.sources[index] {
+                    // Slot is used.  Decide whether or not to replace it.
+                    source.costs.update(now);
+                    // With a small probability, multiply cost by a large coefficient.
+                    // This lets a busy source eventually get a spot in a full table.
+                    let coefficient: u32 = match self.prng.rand_range(0..10_000u32) {
+                        0 => 10_000,
+                        x if x < 10 => 1_000,
+                        x if x < 100 => 100,
+                        x if x < 1000 => 10,
+                        _ => 1,
+                    };
+                    let adjusted_cost = coefficient.saturating_mul(cost);
+                    if adjusted_cost < source.costs.recent_cost() {
+                        // Do not replace entry.  This source will remain unknown.
+                        self.other_costs.add(cost);
+                        true
+                    } else {
+                        // Replace entry.
+                        entry.insert(index);
+                        self.keys.remove(&source.key);
+                        *source = new_source;
+                        self.sources_costs.add(cost);
+                        true
+                    }
+                } else {
+                    // Slot is unused.
+                    self.sources[index] = Some(new_source);
+                    entry.insert(index);
+                    self.sources_costs.add(cost);
+                    true
+                }
+            }
         }
     }
 }
