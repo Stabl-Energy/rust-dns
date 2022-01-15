@@ -54,6 +54,7 @@
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO
+//! - Profile and optimize for runtime
 //! - Tests
 //! - Implement
 //! - Publish
@@ -73,43 +74,9 @@ use std::time::Instant;
 pub use ip_subnet::IpSubnet;
 
 const HORIZON_DURATION: Duration = Duration::from_secs(10);
-const TICKS: usize = 10;
 const TICK_DURATION: Duration =
-    Duration::from_millis((HORIZON_DURATION.as_millis() / (TICKS as u128)) as u64);
+    Duration::from_millis((HORIZON_DURATION.as_millis() / (10_u128)) as u64);
 const MAX_KEYS: usize = 100;
-
-fn right_shift<T: Clone + Default>(slice: &mut [T], n: usize) {
-    if n == 0 {
-        return;
-    }
-    let n = n.min(slice.len());
-    slice.rotate_right(n);
-    slice[0..n].fill(Default::default());
-}
-
-#[cfg(test)]
-#[test]
-fn test_right_shift() {
-    fn check(mut input: &mut [u8], n: usize, expected_output: &[u8]) {
-        right_shift(&mut input, n);
-        assert_eq!(expected_output, input);
-    }
-    check(&mut [], 0, &[]);
-    check(&mut [], 1, &[]);
-    check(&mut [], 11, &[]);
-    check(&mut [1], 0, &[1]);
-    check(&mut [1], 1, &[0]);
-    check(&mut [1], 11, &[0]);
-    check(&mut [1, 2], 0, &[1, 2]);
-    check(&mut [1, 2], 1, &[0, 1]);
-    check(&mut [1, 2], 11, &[0, 0]);
-    check(&mut [1, 2, 3], 0, &[1, 2, 3]);
-    check(&mut [1, 2, 3], 1, &[0, 1, 2]);
-    check(&mut [1, 2, 3], 11, &[0, 0, 0]);
-    check(&mut [1, 2, 3, 4, 5], 0, &[1, 2, 3, 4, 5]);
-    check(&mut [1, 2, 3, 4, 5], 1, &[0, 1, 2, 3, 4]);
-    check(&mut [1, 2, 3, 4, 5], 3, &[0, 0, 0, 1, 2]);
-}
 
 trait SaturatingAddAssign<T> {
     fn saturating_add_assign(&mut self, rhs: T);
@@ -209,38 +176,36 @@ fn test_max_cost() {
 
 #[derive(Clone, Copy, Debug)]
 struct RecentCosts {
-    costs: [u32; TICKS],
+    cost: u32,
     last: Instant,
 }
 impl RecentCosts {
     #[must_use]
     pub fn new(now: Instant) -> Self {
         Self {
-            costs: [0_u32; TICKS],
+            cost: 0_u32,
             last: now,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.costs.iter().all(|elem| *elem == 0)
+        self.cost == 0
     }
 
     pub fn add(&mut self, cost: u32) {
-        self.costs[0].saturating_add_assign(cost);
+        self.cost.saturating_add_assign(cost);
     }
 
     pub fn update(&mut self, now: Instant) {
         let elapsed = now.saturating_duration_since(self.last);
         let elapsed_ticks = (elapsed.as_millis() / TICK_DURATION.as_millis()) as u32;
         self.last = self.last + (TICK_DURATION * elapsed_ticks);
-        right_shift(&mut self.costs, elapsed_ticks as usize);
+        self.cost = self.cost.wrapping_shr(elapsed_ticks);
     }
 
     #[must_use]
     pub fn recent_cost(&self) -> u32 {
-        self.costs
-            .iter()
-            .fold(0_u32, |acc, elem| acc.saturating_add(*elem))
+        self.cost
     }
 }
 
@@ -282,13 +247,21 @@ pub struct RateLimiter {
     other_costs: RecentCosts,
 }
 impl RateLimiter {
+    fn calculate_max_cost(max_per_tick: u32) -> u32 {
+        let mut value: u32 = 0;
+        for _ in 0..33 {
+            value >>= 1;
+            value = value.saturating_add(max_per_tick);
+        }
+        value
+    }
+
     #[must_use]
     pub fn new(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
         // TODO: Ensure that values are not too small.
-        let global_max =
-            (((max_cost_per_sec as u128) * HORIZON_DURATION.as_millis()) / 1_000) as f32;
-        let sources_max = (global_max * 0.80) as u32;
-        let other_max = (global_max * 0.20) as u32;
+        let max_per_tick = ((max_cost_per_sec as u128) * TICK_DURATION.as_millis() / 1_000) as f32;
+        let sources_max = Self::calculate_max_cost((max_per_tick * 0.80) as u32);
+        let other_max = Self::calculate_max_cost((max_per_tick * 0.20) as u32);
         Self {
             sources_max,
             other_max,

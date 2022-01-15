@@ -72,6 +72,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 - v0.1.0 - Initial version
 
 # TO DO
+- Profile and optimize for runtime
 - Tests
 - Implement
 - Publish
