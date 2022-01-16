@@ -1,24 +1,41 @@
 use core::cell::Cell;
 use core::cmp::Ordering;
 use core::time::Duration;
-use fair_ratelimit::RateLimiter;
+use fair_ratelimit::{IpAddrKey, RateLimiter};
 use oorandom::Rand32;
 use std::cell::{Ref, RefCell};
 use std::collections::BinaryHeap;
 use std::fmt::{Debug, Formatter};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::rc::Rc;
 use std::time::Instant;
 
 #[derive(Clone)]
 enum Key {
-    Static(u32),
+    Static(u8),
     Random(Cell<Rand32>),
 }
 impl Key {
-    pub fn get(&mut self) -> u32 {
+    pub fn get(&mut self) -> IpAddrKey {
         match self {
-            Key::Static(value) => *value,
-            Key::Random(rand32_cell) => rand32_cell.get_mut().rand_range(1_000..2_000),
+            Key::Static(value) => IpAddrKey::from(Ipv4Addr::new(10, 0, 0, *value)),
+            Key::Random(rand32_cell) => {
+                let rand32 = rand32_cell.get_mut();
+                if rand32.rand_range(0..2) == 0 {
+                    IpAddrKey::from(Ipv4Addr::from(rand32.rand_u32()))
+                } else {
+                    IpAddrKey::from(Ipv6Addr::new(
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                        (rand32.rand_u32() >> 16) as u16,
+                    ))
+                }
+            }
         }
     }
 }
@@ -48,7 +65,7 @@ impl Client {
         }
     }
 
-    fn check(&mut self, limiter: &mut RateLimiter, now: Instant) -> Instant {
+    fn check(&mut self, limiter: &mut RateLimiter<IpAddrKey>, now: Instant) -> Instant {
         if limiter.check(self.key.get(), self.cost, now) {
             self.accepted_requests += 1;
         }
@@ -57,7 +74,7 @@ impl Client {
 }
 
 fn simulate(
-    limiter: &mut RateLimiter,
+    limiter: &mut RateLimiter<IpAddrKey>,
     clock: &mut Instant,
     num_seconds: u64,
     clients: &[&Rc<RefCell<Client>>],
@@ -118,7 +135,7 @@ macro_rules! assert_contains {
 #[test]
 fn test_simple() {
     let now = Instant::now();
-    let mut limiter = RateLimiter::new(125, Rand32::new(1), now);
+    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), now);
     assert!(limiter.check(0, 99, now));
     assert!(limiter.check(1, 99, now));
     assert!(!limiter.check(0, 1, now));
@@ -128,7 +145,7 @@ fn test_simple() {
 #[test]
 fn test_single_client() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new(125, Rand32::new(1), Instant::now());
+    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
     for (seconds, rps, expected_accepted_requests) in [
         (100, 50, 5000..5001),
         (100, 75, 7501..7502),
@@ -172,7 +189,7 @@ fn test_single_client() {
 #[test]
 fn test_four_clients() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new(125, Rand32::new(1), Instant::now());
+    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
     for ((rps0, rps1, rps2, rps3), (exp0, exp1, exp2, exp3), exp_sum) in [
         (
             (50, 25, 5, 1),
@@ -222,7 +239,7 @@ fn test_four_clients() {
 #[test]
 fn test_client_and_longtail() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new(125, Rand32::new(1), Instant::now());
+    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
     for ((rps_client, rps_longtail), (exp_client, exp_longtail), exp_sum) in [
         (
             (25, 25),

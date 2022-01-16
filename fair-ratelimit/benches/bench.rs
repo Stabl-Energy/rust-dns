@@ -8,7 +8,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("longtail", |b| {
         b.iter(|| {
             let mut clock = Instant::now();
-            let mut limiter = RateLimiter::new(125, Rand32::new(1), clock);
+            let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), clock);
             let mut prng = Rand32::new(2);
             for _ in 0..1000 {
                 for _ in 0..100 {

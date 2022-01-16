@@ -6,7 +6,7 @@
 # fair-ratelimit
 
 Use `RateLimiter` struct to detect overload and
-fairly shed load from diverse users, systems, or IP addresses.
+fairly shed load from diverse IP addresses, users, or systems.
 Prevent denial-of-service (`DoS`) attacks.
 
 ## Use Cases
@@ -26,6 +26,7 @@ Prevent denial-of-service (`DoS`) attacks.
 - IPv4 & IPv6
 - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
 - ?% test coverage
+- Optimized
 
 ## Limitations
 
@@ -37,7 +38,7 @@ Prevent denial-of-service (`DoS`) attacks.
   - Unnecessary `unsafe`
   - Uses non-standard mutex library [`parking_lot`](https://crates.io/crates/parking_lot)
 - [r8limit](https://crates.io/crates/r8limit)
-  - Simple
+  - Supports a single bucket.  Usable for unfair load shedding.
   - No `unsafe` or deps
 - [leaky-bucket](https://crates.io/crates/leaky-bucket)
   - Async tasks can wait for their turn to use a resource.
@@ -47,6 +48,17 @@ Prevent denial-of-service (`DoS`) attacks.
 - [safe-dns](https://crates.io/crates/safe-dns) uses this
 
 ## Example
+```rust
+let mut limiter = RateLimiter::new(5);
+let mut now = Instant::now();
+let key = IpAddrKey::from(Ipv4Addr::new(10,0,0,1));
+assert!(limiter.check(key, 4, now));
+assert!(limiter.check(key, 4, now));
+assert!(!limiter.check(key, 4, now));
+now += Duration::from_secs(1);
+assert!(limiter.check(key, 4, now));
+assert!(!limiter.check(key, 4, now));
+```
 
 ## Cargo Geiger Safety Report
 ```
@@ -72,13 +84,12 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 - v0.1.0 - Initial version
 
 # TO DO
-- Profile and optimize for runtime
-- Tests
-- Implement
+- `const` constructor
+- Adjustable max number of keys
+- Adjustable tick duration
+- Compare performance with `governor`
 - Publish
-- Example with subnet keys
-- Example with IP keys
-- Example with string keys
 - Simulate bursty traffic
+- Measure memory consumption, add to Limitations section
 
 License: Apache-2.0

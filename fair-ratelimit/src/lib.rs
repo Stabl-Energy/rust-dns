@@ -6,7 +6,7 @@
 //! # fair-ratelimit
 //!
 //! Use `RateLimiter` struct to detect overload and
-//! fairly shed load from diverse users, systems, or IP addresses.
+//! fairly shed load from diverse IP addresses, users, or systems.
 //! Prevent denial-of-service (`DoS`) attacks.
 //!
 //! ## Use Cases
@@ -26,6 +26,7 @@
 //! - IPv4 & IPv6
 //! - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
 //! - ?% test coverage
+//! - Optimized
 //!
 //! ## Limitations
 //!
@@ -37,7 +38,7 @@
 //!   - Unnecessary `unsafe`
 //!   - Uses non-standard mutex library [`parking_lot`](https://crates.io/crates/parking_lot)
 //! - [r8limit](https://crates.io/crates/r8limit)
-//!   - Simple
+//!   - Supports a single bucket.  Usable for unfair load shedding.
 //!   - No `unsafe` or deps
 //! - [leaky-bucket](https://crates.io/crates/leaky-bucket)
 //!   - Async tasks can wait for their turn to use a resource.
@@ -47,6 +48,23 @@
 //! - [safe-dns](https://crates.io/crates/safe-dns) uses this
 //!
 //! ## Example
+//! ```
+//! # use fair_ratelimit::{IpAddrKey, RateLimiter};
+//! # use oorandom::Rand32;
+//! # use std::net::Ipv4Addr;
+//! # use std::time::{Duration, Instant};
+//! let mut limiter = RateLimiter::new(5);
+//! # limiter.check(IpAddrKey::from(Ipv4Addr::new(10,0,0,1)), 1, Instant::now());
+//! # let mut limiter = RateLimiter::new_custom(5, Rand32::new(0), Instant::now());
+//! let mut now = Instant::now();
+//! let key = IpAddrKey::from(Ipv4Addr::new(10,0,0,1));
+//! assert!(limiter.check(key, 4, now));
+//! assert!(limiter.check(key, 4, now));
+//! assert!(!limiter.check(key, 4, now));
+//! now += Duration::from_secs(1);
+//! assert!(limiter.check(key, 4, now));
+//! assert!(!limiter.check(key, 4, now));
+//! ```
 //!
 //! ## Cargo Geiger Safety Report
 //!
@@ -54,30 +72,72 @@
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO
-//! - Profile and optimize for runtime
-//! - Tests
-//! - Implement
+//! - `const` constructor
+//! - Adjustable max number of keys
+//! - Adjustable tick duration
+//! - Compare performance with `governor`
 //! - Publish
-//! - Example with subnet keys
-//! - Example with IP keys
-//! - Example with string keys
 //! - Simulate bursty traffic
+//! - Measure memory consumption, add to Limitations section
 #![forbid(unsafe_code)]
-
-mod ip_subnet;
 
 use core::time::Duration;
 use oorandom::Rand32;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::hash::Hash;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
-
-pub use ip_subnet::IpSubnet;
 
 const HORIZON_DURATION: Duration = Duration::from_secs(10);
 const TICK_DURATION: Duration =
     Duration::from_millis((HORIZON_DURATION.as_millis() / (10_u128)) as u64);
 const MAX_KEYS: usize = 100;
+
+/// Copied from unstable `std::net::ip::Ipv6Addr::to_ipv4_mapped`.
+#[must_use]
+const fn to_ipv4_mapped(addr: &Ipv6Addr) -> Option<Ipv4Addr> {
+    match addr.octets() {
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, a, b, c, d] => Some(Ipv4Addr::new(a, b, c, d)),
+        _ => None,
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IpAddrKey(Ipv6Addr);
+impl IpAddrKey {
+    pub fn new(ip_addr: IpAddr) -> Self {
+        match ip_addr {
+            IpAddr::V4(addr) => Self(addr.to_ipv6_mapped()),
+            IpAddr::V6(addr) => Self(addr),
+        }
+    }
+}
+impl From<IpAddr> for IpAddrKey {
+    fn from(addr: IpAddr) -> Self {
+        Self::new(addr)
+    }
+}
+impl From<Ipv4Addr> for IpAddrKey {
+    fn from(addr: Ipv4Addr) -> Self {
+        Self(addr.to_ipv6_mapped())
+    }
+}
+impl From<Ipv6Addr> for IpAddrKey {
+    fn from(addr: Ipv6Addr) -> Self {
+        Self(addr)
+    }
+}
+impl Display for IpAddrKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(addr) = to_ipv4_mapped(&self.0) {
+            write!(f, "{}", addr)
+        } else {
+            write!(f, "{}", self.0)
+        }
+    }
+}
 
 trait SaturatingAddAssign<T> {
     fn saturating_add_assign(&mut self, rhs: T);
@@ -211,12 +271,12 @@ impl RecentCosts {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Source {
-    pub key: u32,
+struct Source<K> {
+    pub key: K,
     pub costs: RecentCosts,
 }
-impl Source {
-    pub fn new(key: u32, now: Instant) -> Self {
+impl<K> Source<K> {
+    pub fn new(key: K, now: Instant) -> Self {
         Self {
             key,
             costs: RecentCosts::new(now),
@@ -238,23 +298,23 @@ impl Source {
 ///   Create the coefficient based on the size of the smallest count, so the smallest count has
 ///   a 50% chance of getting replaced by a new packet of the same size.
 #[derive(Clone, Debug)]
-pub struct RateLimiter {
+pub struct RateLimiter<K: Clone + Copy + Eq + Hash> {
     sources_max: u32,
     other_max: u32,
     prng: Rand32,
     sources_costs: RecentCosts,
-    // TODO: Look at using a custom data structure
-    //  - https://crates.io/crates/linked-hash-map
-    //  - https://crates.io/crates/hashlink
-    //  - https://crates.io/crates/ritelinked
-    //  - https://docs.rs/governor/0.4.0/governor/state/keyed/trait.ShrinkableKeyedStateStore.html
-    keys: HashMap<u32, usize>,
-    sources: [Option<Source>; MAX_KEYS],
+    keys: HashMap<K, usize>,
+    sources: [Option<Source<K>>; MAX_KEYS],
     other_costs: RecentCosts,
 }
-impl RateLimiter {
+impl<K: Clone + Copy + Eq + Hash> RateLimiter<K> {
     #[must_use]
-    pub fn new(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
+    pub fn new(max_cost_per_sec: u32) -> Self {
+        Self::new_custom(max_cost_per_sec, Rand32::new(0), Instant::now())
+    }
+
+    #[must_use]
+    pub fn new_custom(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
         // TODO: Ensure that values are not too small.
         let max_per_tick = ((max_cost_per_sec as u128) * TICK_DURATION.as_millis() / 1_000) as f32;
         let sources_max = (max_per_tick * 0.80 * 2.0) as u32;
@@ -270,7 +330,7 @@ impl RateLimiter {
         }
     }
 
-    pub fn check(&mut self, key: u32, cost: u32, now: Instant) -> bool {
+    pub fn check(&mut self, key: K, cost: u32, now: Instant) -> bool {
         self.sources_costs.update(now);
         let num_keys = self.keys.len() as u32;
         match self.keys.entry(key) {
@@ -300,7 +360,7 @@ impl RateLimiter {
                 if !decide(recent_cost, self.other_max, || self.prng.rand_float()) {
                     return false;
                 }
-                let mut new_source = Source::new(key, now);
+                let mut new_source = Source::new(entry.key().clone(), now);
                 new_source.costs.add(cost);
                 let index = self.prng.rand_range(0..(MAX_KEYS as u32)) as usize;
                 if let Some(source) = &mut self.sources[index] {
