@@ -25,7 +25,7 @@
 //! - Global throughput limit
 //! - IPv4 & IPv6
 //! - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
-//! - ?% test coverage
+//! - 83% test coverage
 //! - Optimized.  Performance on an i5-8259U:
 //!   - Internal service tracking 10 clients: 150ns per check, 7M checks per second
 //!   - Public service tracking 1M clients: 500ns per check, 2M checks per second
@@ -86,7 +86,8 @@
 //! - Measure memory consumption, add to Limitations section
 //! - Replace hash table with skip list and see if performance improves
 //! - Support concurrent use
-//! - Allow tracked sources to use unused untracked throughput allocation.
+//! - Allow tracked sources to use unused untracked throughput allocation
+//! - Adjust tick_duration to support max_cost_per_sec < 1.0
 #![forbid(unsafe_code)]
 
 use core::time::Duration;
@@ -434,7 +435,6 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
 pub fn new_fair_ip_address_rate_limiter(
     max_cost_per_sec: f32,
 ) -> Result<FairRateLimiter<IpAddrKey, 1000>, String> {
-    // TODO: Adjust tick_duration to support max_cost_per_sec < 1.0.
     let other_max = max((max_cost_per_sec * 0.20) as u32, 1);
     let sources_max = (max_cost_per_sec as u32).saturating_sub(other_max);
     if max_cost_per_sec != 0.0 && sources_max == 0 {
