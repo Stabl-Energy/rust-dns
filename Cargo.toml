@@ -6,6 +6,7 @@ members = [
     "build-data-test",
     "fair-ratelimit",
     "permit",
+    "prob-rate-limiter",
     "rustls-pin",
     "safe-dns",
     "safe-lock",
