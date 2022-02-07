@@ -87,7 +87,7 @@ trait SaturatingAddAssign<T> {
 }
 impl SaturatingAddAssign<u32> for u32 {
     fn saturating_add_assign(&mut self, rhs: u32) {
-        *self = self.saturating_add(rhs)
+        *self = self.saturating_add(rhs);
     }
 }
 
@@ -96,7 +96,7 @@ fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) 
     let load = if max_cost == 0 || recent_cost >= max_cost {
         return false;
     } else {
-        (recent_cost as f32) / (max_cost as f32)
+        f64::from(recent_cost) / f64::from(max_cost)
     };
     // Value is in (-inf, 1.0).
     let linear_reject_prob = (load - 0.75) * 4.0;
@@ -104,7 +104,7 @@ fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) 
         return true;
     }
     let reject_prob = linear_reject_prob.powi(2);
-    reject_prob < rand_float()
+    reject_prob < rand_float().into()
 }
 
 #[cfg(test)]
@@ -172,6 +172,7 @@ impl ProbRateLimiter {
                 max_cost_per_sec
             ));
         }
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let max_cost_per_tick = max_cost_per_sec as u32;
         // TODO: Multiply all costs to support costs under 1.0 and to increase memory.
         if max_cost_per_sec != 0.0 && max_cost_per_tick == 0 {
@@ -193,8 +194,9 @@ impl ProbRateLimiter {
             return false;
         }
         let elapsed = now.saturating_duration_since(self.last);
+        #[allow(clippy::cast_possible_truncation)]
         let elapsed_ticks = (elapsed.as_micros() / self.tick_duration.as_micros()) as u32;
-        self.last = self.last + (self.tick_duration * elapsed_ticks);
+        self.last += self.tick_duration * elapsed_ticks;
         self.cost = self.cost.wrapping_shr(elapsed_ticks);
         if !decide(self.cost, self.max_cost, || self.prng.rand_float()) {
             return false;

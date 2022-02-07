@@ -7,7 +7,7 @@
 //!
 //! Use `RateLimiter` struct to detect overload and
 //! fairly shed load from diverse IP addresses, users, or systems.
-//! Prevent denial-of-service (`DoS`) attacks.
+//! Mitigate denial-of-service (`DoS`) attacks.
 //!
 //! ## Use Cases
 //! - DNS server: DNS servers must send UDP replies without a handshake.
@@ -16,7 +16,7 @@
 //!   Use this crate to prevent that.
 //! - Server without handshake: If your server sends large responses without a handshake,
 //!   it could be used in an amplification attack.  Use this crate to prevent that.
-//! - Load balancer: Use this crate in a load balancer to avoid forwarding DoS attacks to
+//! - Load balancer: Use this crate in a load balancer to avoid forwarding `DoS` attacks to
 //!   backend systems.
 //! - API server: Shed load from misbehaving clients
 //!   and keep the API available for other clients.
@@ -29,7 +29,7 @@
 //! - Optimized.  Performance on an i5-8259U:
 //!   - Internal service tracking 10 clients: 150ns per check, 7M checks per second
 //!   - Public service tracking 1M clients: 500ns per check, 2M checks per second
-//!   - DDoS mitigation tracking 30M clients: 750ns per check, 1.3M checks per second
+//!   - `DDoS` mitigation tracking 30M clients: 750ns per check, 1.3M checks per second
 //!
 //! ## Limitations
 //!
@@ -87,7 +87,7 @@
 //! - Replace hash table with skip list and see if performance improves
 //! - Support concurrent use
 //! - Allow tracked sources to use unused untracked throughput allocation
-//! - Adjust tick_duration to support max_cost_per_sec < 1.0
+//! - Adjust `tick_duration` to support `max_cost_per_sec` < 1.0
 #![forbid(unsafe_code)]
 
 use core::time::Duration;
@@ -112,6 +112,7 @@ const fn to_ipv4_mapped(addr: &Ipv6Addr) -> Option<Ipv4Addr> {
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct IpAddrKey(Ipv6Addr);
 impl IpAddrKey {
+    #[must_use]
     pub fn new(ip_addr: IpAddr) -> Self {
         match ip_addr {
             IpAddr::V4(addr) => Self(addr.to_ipv6_mapped()),
@@ -149,7 +150,7 @@ trait SaturatingAddAssign<T> {
 }
 impl SaturatingAddAssign<u32> for u32 {
     fn saturating_add_assign(&mut self, rhs: u32) {
-        *self = self.saturating_add(rhs)
+        *self = self.saturating_add(rhs);
     }
 }
 
@@ -158,7 +159,7 @@ fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) 
     let load = if max_cost == 0 || recent_cost >= max_cost {
         return false;
     } else {
-        (recent_cost as f32) / (max_cost as f32)
+        f64::from(recent_cost) / f64::from(max_cost)
     };
     // Value is in (-inf, 1.0).
     let linear_reject_prob = (load - 0.75) * 4.0;
@@ -166,7 +167,7 @@ fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) 
         return true;
     }
     let reject_prob = linear_reject_prob.powi(2);
-    reject_prob < rand_float()
+    reject_prob < rand_float().into()
 }
 
 #[cfg(test)]
@@ -191,16 +192,17 @@ fn test_decide() {
 }
 
 /// When recent load is in (0.75,1.0], linearly interpolate max cost between
-/// global_max_cost and global_max_cost/keys.
+/// `global_max_cost` and `global_max_cost`/keys.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn max_cost(sources_max: u32, recent_cost: u32, keys: u32) -> u32 {
     if sources_max < 1 {
         return 0;
     }
-    let load = (recent_cost as f32) / (sources_max as f32);
+    let load = f64::from(recent_cost) / f64::from(sources_max);
     if keys < 1 {
         sources_max
     } else if load > 1.0 {
-        ((sources_max as f32) / (keys as f32)) as u32
+        (f64::from(sources_max) / f64::from(keys)) as u32
     } else if load > 0.75 {
         let x = (load - 0.75) * 4.0;
         // f(x) = ax + b
@@ -209,7 +211,7 @@ fn max_cost(sources_max: u32, recent_cost: u32, keys: u32) -> u32 {
         // f(x) = -(global_max_cost - global_max_cost/keys)x + global_max_cost
         // f(x) = global_max_cost - (global_max_cost - global_max_cost/keys)x
         // f(x) = global_max_cost(1 - (1 - 1/keys)x)
-        ((sources_max as f32) * (1.0 - (1.0 - 1.0 / (keys as f32)) * x)) as u32
+        (f64::from(sources_max) * (1.0 - (1.0 - 1.0 / f64::from(keys)) * x)) as u32
     } else {
         sources_max
     }
@@ -234,9 +236,9 @@ fn test_max_cost() {
     assert_eq!(1000, max_cost(1000, 0, 10));
     assert_eq!(1000, max_cost(1000, 750, 10));
     assert_eq!(996, max_cost(1000, 751, 10));
-    assert_eq!(460, max_cost(1000, 900, 10));
+    assert_eq!(459, max_cost(1000, 900, 10));
     assert_eq!(103, max_cost(1000, 999, 10));
-    assert_eq!(100, max_cost(1000, 1000, 10));
+    assert_eq!(99, max_cost(1000, 1000, 10));
     assert_eq!(100, max_cost(1000, 1500, 10));
 }
 
@@ -264,8 +266,9 @@ impl RecentCosts {
 
     pub fn update(&mut self, tick_duration: Duration, now: Instant) {
         let elapsed = now.saturating_duration_since(self.last);
+        #[allow(clippy::cast_possible_truncation)]
         let elapsed_ticks = (elapsed.as_millis() / tick_duration.as_millis()) as u32;
-        self.last = self.last + (tick_duration * elapsed_ticks);
+        self.last += tick_duration * elapsed_ticks;
         self.cost = self.cost.wrapping_shr(elapsed_ticks);
     }
 
@@ -324,9 +327,8 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
     ///
     /// Set both numbers to zero to stop all requests.
     ///
-    /// # Panics
-    /// Panics when `other_max_cost_per_sec` is zero and `tracked_max_cost_per_sec` is not zero.
-    #[must_use]
+    /// # Errors
+    /// Returns error when `tick_duration` is less than a 1 microsecond.
     pub fn new(
         tick_duration: Duration,
         max_cost_per_tick_from_tracked_sources: u32,
@@ -349,8 +351,10 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
         })
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn check(&mut self, key: Key, cost: u32, now: Instant) -> bool {
         self.sources_costs.update(self.tick_duration, now);
+        #[allow(clippy::cast_possible_truncation)]
         let num_keys = self.keys.len() as u32;
         match self.keys.entry(key) {
             Entry::Occupied(entry) => {
@@ -361,9 +365,8 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
                 source.costs.update(self.tick_duration, now);
                 let max_cost =
                     max_cost(self.sources_max, self.sources_costs.recent_cost(), num_keys);
-                if decide(source.costs.recent_cost(), max_cost, || {
-                    self.prng.rand_float()
-                }) {
+                let rand_float = || self.prng.rand_float();
+                if decide(source.costs.recent_cost(), max_cost, rand_float) {
                     // Accept the request.
                     self.sources_costs.add(cost);
                     source.costs.add(cost);
@@ -375,7 +378,7 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
                         entry.remove();
                         self.sources[index] = None;
                     }
-                    return false;
+                    false
                 }
             }
             Entry::Vacant(entry) => {
@@ -387,8 +390,9 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
                     return false;
                 }
                 // Pick a random slot.
-                let mut new_source = Source::new(entry.key().clone(), now);
+                let mut new_source = Source::new(*entry.key(), now);
                 new_source.costs.add(cost);
+                #[allow(clippy::cast_possible_truncation)]
                 let index = self.prng.rand_range(0..(MAX_KEYS as u32)) as usize;
                 if let Some(source) = &mut self.sources[index] {
                     // Slot is used.  Decide whether or not to replace it.
@@ -431,11 +435,12 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
 ///
 /// # Errors
 /// Returns an error when `max_cost_per_sec` is less than 1.0.
-#[must_use]
 pub fn new_fair_ip_address_rate_limiter(
     max_cost_per_sec: f32,
 ) -> Result<FairRateLimiter<IpAddrKey, 1000>, String> {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let other_max = max((max_cost_per_sec * 0.20) as u32, 1);
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let sources_max = (max_cost_per_sec as u32).saturating_sub(other_max);
     if max_cost_per_sec != 0.0 && sources_max == 0 {
         return Err(format!(

@@ -5,7 +5,7 @@ use std::ops::Add;
 use std::time::{Duration, Instant};
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("SimpleRateLimiter::check", |b| {
+    c.bench_function("bench", |b| {
         b.iter(|| {
             let mut clock = Instant::now();
             let mut limiter = ProbRateLimiter::new(500.0).unwrap();
