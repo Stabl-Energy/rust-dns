@@ -1,6 +1,6 @@
-//! $ cargo bench --package fair-ratelimit --bench bench
+//! $ cargo bench --package fair-rate-limiter --bench bench
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fair_ratelimit::FairRateLimiter;
+use fair_rate_limiter::FairRateLimiter;
 use oorandom::Rand32;
 use std::ops::Add;
 use std::time::{Duration, Instant};

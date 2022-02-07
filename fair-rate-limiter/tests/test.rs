@@ -1,7 +1,7 @@
 use core::cell::Cell;
 use core::cmp::Ordering;
 use core::time::Duration;
-use fair_ratelimit::{FairRateLimiter, IpAddrKey};
+use fair_rate_limiter::{FairRateLimiter, IpAddrKey};
 use oorandom::Rand32;
 use std::cell::{Ref, RefCell};
 use std::collections::BinaryHeap;

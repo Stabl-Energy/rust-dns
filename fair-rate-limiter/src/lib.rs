@@ -1,9 +1,9 @@
-//! [![crates.io version](https://img.shields.io/crates/v/fair-ratelimit.svg)](https://crates.io/crates/fair-ratelimit)
-//! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/fair-ratelimit/LICENSE)
+//! [![crates.io version](https://img.shields.io/crates/v/fair-rate-limiter.svg)](https://crates.io/crates/fair-rate-limiter)
+//! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/fair-rate-limiter/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # fair-ratelimit
+//! # fair-rate-limiter
 //!
 //! Use `RateLimiter` struct to detect overload and
 //! fairly shed load from diverse IP addresses, users, or systems.
@@ -52,7 +52,7 @@
 //!
 //! ## Example
 //! ```
-//! # use fair_ratelimit::{new_fair_ip_address_rate_limiter, IpAddrKey, FairRateLimiter};
+//! # use fair_rate_limiter::{new_fair_ip_address_rate_limiter, IpAddrKey, FairRateLimiter};
 //! # use oorandom::Rand32;
 //! # use std::net::Ipv4Addr;
 //! # use std::time::{Duration, Instant};

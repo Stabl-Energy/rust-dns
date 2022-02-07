@@ -1,9 +1,9 @@
-[![crates.io version](https://img.shields.io/crates/v/fair-ratelimit.svg)](https://crates.io/crates/fair-ratelimit)
-[![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/fair-ratelimit/LICENSE)
+[![crates.io version](https://img.shields.io/crates/v/fair-rate-limiter.svg)](https://crates.io/crates/fair-rate-limiter)
+[![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/fair-rate-limiter/LICENSE)
 [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 
-# fair-ratelimit
+# fair-rate-limiter
 
 Use `RateLimiter` struct to detect overload and
 fairly shed load from diverse IP addresses, users, or systems.
@@ -25,7 +25,7 @@ Prevent denial-of-service (`DoS`) attacks.
 - Global throughput limit
 - IPv4 & IPv6
 - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
-- ?% test coverage
+- 83% test coverage
 - Optimized.  Performance on an i5-8259U:
   - Internal service tracking 10 clients: 150ns per check, 7M checks per second
   - Public service tracking 1M clients: 500ns per check, 2M checks per second
@@ -70,25 +70,7 @@ assert!(!limiter.check(key, 4, now));
 ```
 
 ## Cargo Geiger Safety Report
-```
 
-Metric output format: x/y
-    x = unsafe code used by the build
-    y = total unsafe code found in the crate
-
-Symbols: 
-    🔒  = No `unsafe` usage found, declares #![forbid(unsafe_code)]
-    ❓  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
-    ☢️  = `unsafe` usage found
-
-Functions  Expressions  Impls  Traits  Methods  Dependency
-
-0/0        0/0          0/0    0/0     0/0      🔒  fair-ratelimit 0.1.0
-0/0        0/0          0/0    0/0     0/0      🔒  └── oorandom 11.1.3
-
-0/0        0/0          0/0    0/0     0/0    
-
-```
 ## Changelog
 - v0.1.0 - Initial version
 
@@ -100,6 +82,7 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 - Measure memory consumption, add to Limitations section
 - Replace hash table with skip list and see if performance improves
 - Support concurrent use
-- Allow tracked sources to use unused untracked throughput allocation.
+- Allow tracked sources to use unused untracked throughput allocation
+- Adjust tick_duration to support max_cost_per_sec < 1.0
 
 License: Apache-2.0

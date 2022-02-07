@@ -4,7 +4,7 @@ members = [
     "any-range",
     "build-data",
     "build-data-test",
-    "fair-ratelimit",
+    "fair-rate-limiter",
     "permit",
     "prob-rate-limiter",
     "rustls-pin",
