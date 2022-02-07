@@ -1,7 +1,8 @@
+//! TODO: Rename to 'test.rs'
 use core::cell::Cell;
 use core::cmp::Ordering;
 use core::time::Duration;
-use fair_ratelimit::{IpAddrKey, RateLimiter};
+use fair_ratelimit::{FairRateLimiter, IpAddrKey};
 use oorandom::Rand32;
 use std::cell::{Ref, RefCell};
 use std::collections::BinaryHeap;
@@ -65,7 +66,7 @@ impl Client {
         }
     }
 
-    fn check(&mut self, limiter: &mut RateLimiter<IpAddrKey>, now: Instant) -> Instant {
+    fn check(&mut self, limiter: &mut FairRateLimiter<IpAddrKey, 100>, now: Instant) -> Instant {
         if limiter.check(self.key.get(), self.cost, now) {
             self.accepted_requests += 1;
         }
@@ -74,7 +75,7 @@ impl Client {
 }
 
 fn simulate(
-    limiter: &mut RateLimiter<IpAddrKey>,
+    limiter: &mut FairRateLimiter<IpAddrKey, 100>,
     clock: &mut Instant,
     num_seconds: u64,
     clients: &[&Rc<RefCell<Client>>],
@@ -135,7 +136,9 @@ macro_rules! assert_contains {
 #[test]
 fn test_simple() {
     let now = Instant::now();
-    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), now);
+    let mut limiter =
+        <FairRateLimiter<u8, 10>>::new(Duration::from_secs(1), 100, 25, Rand32::new(1), now)
+            .unwrap();
     assert!(limiter.check(0, 99, now));
     assert!(limiter.check(1, 99, now));
     assert!(!limiter.check(0, 1, now));
@@ -145,7 +148,14 @@ fn test_simple() {
 #[test]
 fn test_single_client() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
+    let mut limiter = FairRateLimiter::new(
+        Duration::from_secs(1),
+        100,
+        25,
+        Rand32::new(1),
+        Instant::now(),
+    )
+    .unwrap();
     for (seconds, rps, expected_accepted_requests) in [
         (100, 50, 5000..5001),
         (100, 75, 7501..7502),
@@ -189,7 +199,14 @@ fn test_single_client() {
 #[test]
 fn test_four_clients() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
+    let mut limiter = FairRateLimiter::new(
+        Duration::from_secs(1),
+        100,
+        25,
+        Rand32::new(1),
+        Instant::now(),
+    )
+    .unwrap();
     for ((rps0, rps1, rps2, rps3), (exp0, exp1, exp2, exp3), exp_sum) in [
         (
             (50, 25, 5, 1),
@@ -239,7 +256,14 @@ fn test_four_clients() {
 #[test]
 fn test_client_and_longtail() {
     let mut clock = Instant::now();
-    let mut limiter = RateLimiter::new_custom(125, Rand32::new(1), Instant::now());
+    let mut limiter = FairRateLimiter::new(
+        Duration::from_secs(1),
+        100,
+        25,
+        Rand32::new(1),
+        Instant::now(),
+    )
+    .unwrap();
     for ((rps_client, rps_longtail), (exp_client, exp_longtail), exp_sum) in [
         (
             (25, 25),

@@ -26,7 +26,10 @@
 //! - IPv4 & IPv6
 //! - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
 //! - ?% test coverage
-//! - Optimized
+//! - Optimized.  Performance on an i5-8259U:
+//!   - Internal service tracking 10 clients: 150ns per check, 7M checks per second
+//!   - Public service tracking 1M clients: 500ns per check, 2M checks per second
+//!   - DDoS mitigation tracking 30M clients: 750ns per check, 1.3M checks per second
 //!
 //! ## Limitations
 //!
@@ -49,19 +52,23 @@
 //!
 //! ## Example
 //! ```
-//! # use fair_ratelimit::{IpAddrKey, RateLimiter};
+//! # use fair_ratelimit::{new_fair_ip_address_rate_limiter, IpAddrKey, FairRateLimiter};
 //! # use oorandom::Rand32;
 //! # use std::net::Ipv4Addr;
 //! # use std::time::{Duration, Instant};
-//! let mut limiter = RateLimiter::new(5);
-//! # limiter.check(IpAddrKey::from(Ipv4Addr::new(10,0,0,1)), 1, Instant::now());
-//! # let mut limiter = RateLimiter::new_custom(5, Rand32::new(0), Instant::now());
+//! let mut limiter = new_fair_ip_address_rate_limiter(10.0).unwrap();
 //! let mut now = Instant::now();
 //! let key = IpAddrKey::from(Ipv4Addr::new(10,0,0,1));
 //! assert!(limiter.check(key, 4, now));
 //! assert!(limiter.check(key, 4, now));
-//! assert!(!limiter.check(key, 4, now));
 //! now += Duration::from_secs(1);
+//! assert!(limiter.check(key, 4, now));
+//! assert!(limiter.check(key, 4, now));
+//! now += Duration::from_secs(1);
+//! assert!(limiter.check(key, 4, now));
+//! assert!(limiter.check(key, 4, now));
+//! now += Duration::from_secs(1);
+//! assert!(limiter.check(key, 4, now));
 //! assert!(limiter.check(key, 4, now));
 //! assert!(!limiter.check(key, 4, now));
 //! ```
@@ -72,28 +79,25 @@
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO
-//! - `const` constructor
-//! - Adjustable max number of keys
-//! - Adjustable tick duration
+//! - Rename to `fair-rate-limiter`
 //! - Compare performance with `governor`
 //! - Publish
 //! - Simulate bursty traffic
 //! - Measure memory consumption, add to Limitations section
+//! - Replace hash table with skip list and see if performance improves
+//! - Support concurrent use
+//! - Allow tracked sources to use unused untracked throughput allocation.
 #![forbid(unsafe_code)]
 
 use core::time::Duration;
 use oorandom::Rand32;
+use std::cmp::max;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
-
-const HORIZON_DURATION: Duration = Duration::from_secs(10);
-const TICK_DURATION: Duration =
-    Duration::from_millis((HORIZON_DURATION.as_millis() / (10_u128)) as u64);
-const MAX_KEYS: usize = 100;
 
 /// Copied from unstable `std::net::ip::Ipv6Addr::to_ipv4_mapped`.
 #[must_use]
@@ -257,10 +261,10 @@ impl RecentCosts {
         self.cost.saturating_add_assign(cost);
     }
 
-    pub fn update(&mut self, now: Instant) {
+    pub fn update(&mut self, tick_duration: Duration, now: Instant) {
         let elapsed = now.saturating_duration_since(self.last);
-        let elapsed_ticks = (elapsed.as_millis() / TICK_DURATION.as_millis()) as u32;
-        self.last = self.last + (TICK_DURATION * elapsed_ticks);
+        let elapsed_ticks = (elapsed.as_millis() / tick_duration.as_millis()) as u32;
+        self.last = self.last + (tick_duration * elapsed_ticks);
         self.cost = self.cost.wrapping_shr(elapsed_ticks);
     }
 
@@ -284,70 +288,89 @@ impl<K> Source<K> {
     }
 }
 
-/// Features:
+/// A fair rate-limiter.
 /// - Probabilistically rejects requests.
-///   Normal overload causes an increase in latency as clients retry.
-///   Overload does not trigger a sudden total outage for any group of users.
-/// - In overload, try to give every IP address the same throughput.
-///   As recent load approaches overload, gradually increase fairness.
-///   A limited source of overload will get throttled and leave other traffic untouched.
+/// - When not overloaded, allows any source to freely consume throughput.
+/// - Gradually increases fairness as load approaches overload.
+/// - Onset of overload does not trigger a sudden total outage for any group of users.
+/// - In overload, it tries to give every source the same throughput.
+/// - A limited source of overload will get throttled and leave other traffic untouched.
 ///
-/// Implementation:
-/// - Keep a map of target IPs to the count of bytes sent recently.
-/// - When adding a new IP to a full map, multiply the count of bytes by a random coefficient.
-///   Create the coefficient based on the size of the smallest count, so the smallest count has
-///   a 50% chance of getting replaced by a new packet of the same size.
+/// Can track `MaxKeys` sources.
+///
+/// Each source has a key with type `K`.
+/// [`IpAddrKey`](struct.IpAddrKey.html) is useful for this.
 #[derive(Clone, Debug)]
-pub struct RateLimiter<K: Clone + Copy + Eq + Hash> {
+pub struct FairRateLimiter<K: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> {
+    tick_duration: Duration,
     sources_max: u32,
     other_max: u32,
     prng: Rand32,
     sources_costs: RecentCosts,
     keys: HashMap<K, usize>,
-    sources: [Option<Source<K>>; MAX_KEYS],
+    sources: Box<[Option<Source<K>>]>,
     other_costs: RecentCosts,
 }
-impl<K: Clone + Copy + Eq + Hash> RateLimiter<K> {
+impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, MAX_KEYS> {
+    /// Make a new rate limiter.
+    ///
+    /// The rate limiter remembers 100 clients which recently had the heaviest load.
+    /// It allows `tracked_max_cost_per_sec` traffic from these clients.
+    ///
+    /// Other clients with lighter load are untracked.
+    /// If you make a bar graph of clients, ordered by their traffic, these are the long tail.
+    /// The rate limiter allows `other_max_cost_per_sec` traffic from these clients.
+    ///
+    /// Set both numbers to zero to stop all requests.
+    ///
+    /// # Panics
+    /// Panics when `other_max_cost_per_sec` is zero and `tracked_max_cost_per_sec` is not zero.
     #[must_use]
-    pub fn new(max_cost_per_sec: u32) -> Self {
-        Self::new_custom(max_cost_per_sec, Rand32::new(0), Instant::now())
-    }
-
-    #[must_use]
-    pub fn new_custom(max_cost_per_sec: u32, prng: Rand32, now: Instant) -> Self {
-        // TODO: Ensure that values are not too small.
-        let max_per_tick = ((max_cost_per_sec as u128) * TICK_DURATION.as_millis() / 1_000) as f32;
-        let sources_max = (max_per_tick * 0.80 * 2.0) as u32;
-        let other_max = (max_per_tick * 0.20 * 2.0) as u32;
-        Self {
-            sources_max,
-            other_max,
+    pub fn new(
+        tick_duration: Duration,
+        max_cost_per_tick_from_tracked_sources: u32,
+        max_cost_per_tick_from_untracked_sources: u32,
+        prng: Rand32,
+        now: Instant,
+    ) -> Result<Self, String> {
+        if tick_duration.as_micros() == 0 {
+            return Err(format!("tick_duration too small: {:?}", tick_duration));
+        }
+        Ok(Self {
+            tick_duration,
+            sources_max: max_cost_per_tick_from_tracked_sources * 2,
+            other_max: max_cost_per_tick_from_untracked_sources * 2,
             prng,
             sources_costs: RecentCosts::new(now),
             keys: HashMap::with_capacity(MAX_KEYS),
-            sources: [None; MAX_KEYS],
+            sources: vec![None; MAX_KEYS].into_boxed_slice(),
             other_costs: RecentCosts::new(now),
-        }
+        })
     }
 
-    pub fn check(&mut self, key: K, cost: u32, now: Instant) -> bool {
-        self.sources_costs.update(now);
+    pub fn check(&mut self, key: Key, cost: u32, now: Instant) -> bool {
+        self.sources_costs.update(self.tick_duration, now);
         let num_keys = self.keys.len() as u32;
         match self.keys.entry(key) {
             Entry::Occupied(entry) => {
+                // The key was found.
+                // Decide whether ot reject or accept he request.
                 let index = *entry.get();
                 let source = self.sources[index].as_mut().unwrap();
-                source.costs.update(now);
+                source.costs.update(self.tick_duration, now);
                 let max_cost =
                     max_cost(self.sources_max, self.sources_costs.recent_cost(), num_keys);
                 if decide(source.costs.recent_cost(), max_cost, || {
                     self.prng.rand_float()
                 }) {
+                    // Accept the request.
                     self.sources_costs.add(cost);
                     source.costs.add(cost);
                     true
                 } else {
+                    // Reject the request.
                     if source.costs.is_empty() {
+                        // The key has no recent costs.  Discard it.
                         entry.remove();
                         self.sources[index] = None;
                     }
@@ -355,17 +378,20 @@ impl<K: Clone + Copy + Eq + Hash> RateLimiter<K> {
                 }
             }
             Entry::Vacant(entry) => {
-                self.other_costs.update(now);
+                // The key was not found.
+                // Decide whether to reject the request right away.
+                self.other_costs.update(self.tick_duration, now);
                 let recent_cost = self.other_costs.recent_cost();
                 if !decide(recent_cost, self.other_max, || self.prng.rand_float()) {
                     return false;
                 }
+                // Pick a random slot.
                 let mut new_source = Source::new(entry.key().clone(), now);
                 new_source.costs.add(cost);
                 let index = self.prng.rand_range(0..(MAX_KEYS as u32)) as usize;
                 if let Some(source) = &mut self.sources[index] {
                     // Slot is used.  Decide whether or not to replace it.
-                    source.costs.update(now);
+                    source.costs.update(self.tick_duration, now);
                     // With a small probability, multiply cost by a large coefficient.
                     // This lets a busy source eventually get a spot in a full table.
                     let coefficient: u32 = match self.prng.rand_range(0..10_000u32) {
@@ -398,4 +424,30 @@ impl<K: Clone + Copy + Eq + Hash> RateLimiter<K> {
             }
         }
     }
+}
+
+/// Creates a new fair rate limiter for IP addresses.
+///
+/// # Errors
+/// Returns an error when `max_cost_per_sec` is less than 1.0.
+#[must_use]
+pub fn new_fair_ip_address_rate_limiter(
+    max_cost_per_sec: f32,
+) -> Result<FairRateLimiter<IpAddrKey, 1000>, String> {
+    // TODO: Adjust tick_duration to support max_cost_per_sec < 1.0.
+    let other_max = max((max_cost_per_sec * 0.20) as u32, 1);
+    let sources_max = (max_cost_per_sec as u32).saturating_sub(other_max);
+    if max_cost_per_sec != 0.0 && sources_max == 0 {
+        return Err(format!(
+            "max_cost_per_sec is too small: {:?}",
+            max_cost_per_sec
+        ));
+    }
+    FairRateLimiter::new(
+        Duration::from_secs(1),
+        sources_max,
+        other_max,
+        Rand32::new(0),
+        Instant::now(),
+    )
 }

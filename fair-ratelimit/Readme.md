@@ -26,7 +26,10 @@ Prevent denial-of-service (`DoS`) attacks.
 - IPv4 & IPv6
 - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
 - ?% test coverage
-- Optimized
+- Optimized.  Performance on an i5-8259U:
+  - Internal service tracking 10 clients: 150ns per check, 7M checks per second
+  - Public service tracking 1M clients: 500ns per check, 2M checks per second
+  - DDoS mitigation tracking 30M clients: 750ns per check, 1.3M checks per second
 
 ## Limitations
 
@@ -49,13 +52,19 @@ Prevent denial-of-service (`DoS`) attacks.
 
 ## Example
 ```rust
-let mut limiter = RateLimiter::new(5);
+let mut limiter = new_fair_ip_address_rate_limiter(10.0).unwrap();
 let mut now = Instant::now();
 let key = IpAddrKey::from(Ipv4Addr::new(10,0,0,1));
 assert!(limiter.check(key, 4, now));
 assert!(limiter.check(key, 4, now));
-assert!(!limiter.check(key, 4, now));
 now += Duration::from_secs(1);
+assert!(limiter.check(key, 4, now));
+assert!(limiter.check(key, 4, now));
+now += Duration::from_secs(1);
+assert!(limiter.check(key, 4, now));
+assert!(limiter.check(key, 4, now));
+now += Duration::from_secs(1);
+assert!(limiter.check(key, 4, now));
 assert!(limiter.check(key, 4, now));
 assert!(!limiter.check(key, 4, now));
 ```
@@ -84,12 +93,13 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 - v0.1.0 - Initial version
 
 # TO DO
-- `const` constructor
-- Adjustable max number of keys
-- Adjustable tick duration
+- Rename to `fair-rate-limiter`
 - Compare performance with `governor`
 - Publish
 - Simulate bursty traffic
 - Measure memory consumption, add to Limitations section
+- Replace hash table with skip list and see if performance improves
+- Support concurrent use
+- Allow tracked sources to use unused untracked throughput allocation.
 
 License: Apache-2.0
