@@ -1,4 +1,3 @@
-//! TODO: Rename to 'test.rs'
 use core::cell::Cell;
 use core::cmp::Ordering;
 use core::time::Duration;
