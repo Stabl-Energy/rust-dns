@@ -235,8 +235,8 @@ fn get_env() {
 fn get_git_branch() {
     let _guard = LOCK.lock().unwrap();
     let value: String = build_data::get_git_branch().unwrap();
-    let matcher: safe_regex::Matcher0<_> = safe_regex::regex!(br"[a-zA-Z0-9]+");
-    assert!(matcher.is_match(value.as_bytes()));
+    let matcher: safe_regex::Matcher0<_> = safe_regex::regex!(br"[-_.+a-zA-Z0-9]+");
+    assert!(matcher.is_match(value.as_bytes()), "{:?}", value);
 
     assert_eq!(
         format!("cargo:rustc-env=GIT_BRANCH={}\n", value),
