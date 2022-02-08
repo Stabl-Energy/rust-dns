@@ -30,7 +30,9 @@ rust-stable:
     - (cd "$CI_BUILDS_DIR"/cargo-geiger/cargo-geiger && git branch release_prep && git checkout d77a92a1f226a8b3c58e724bbbc9bb0bf39fe1be && cargo build --release --features vendored-openssl)
     - mv "$CARGO_TARGET_DIR"/release/cargo-geiger "$CARGO_HOME"/bin/
     - cargo fmt --version || rustup component add rustfmt
+    - cargo fmt --version
     - cargo clippy --version || rustup component add clippy
+    - cargo clippy --version
     - git --version
-    - ./check-all.sh --skip-readme-check
+    - ./check-all.sh
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
