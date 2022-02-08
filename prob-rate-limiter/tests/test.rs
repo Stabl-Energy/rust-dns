@@ -120,6 +120,8 @@ fn test_clone() {
     assert!(!clone.check(1, now));
 }
 
+// TODO: Test `attempt` and `record` separately.
+
 #[test]
 fn test_steady_state() {
     let mut clock = Instant::now();
