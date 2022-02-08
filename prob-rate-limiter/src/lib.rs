@@ -191,7 +191,7 @@ impl ProbRateLimiter {
         )
     }
 
-    pub fn check(&mut self, cost: u32, now: Instant) -> bool {
+    pub fn attempt(&mut self, now: Instant) -> bool {
         if self.max_cost == 0 {
             return false;
         }
@@ -200,10 +200,19 @@ impl ProbRateLimiter {
         let elapsed_ticks = (elapsed.as_micros() / self.tick_duration.as_micros()) as u32;
         self.last += self.tick_duration * elapsed_ticks;
         self.cost = self.cost.wrapping_shr(elapsed_ticks);
-        if !decide(self.cost, self.max_cost, || self.prng.rand_float()) {
-            return false;
-        }
+        decide(self.cost, self.max_cost, || self.prng.rand_float())
+    }
+
+    pub fn record(&mut self, cost: u32) {
         self.cost.saturating_add_assign(cost);
-        true
+    }
+
+    pub fn check(&mut self, cost: u32, now: Instant) -> bool {
+        if self.attempt(now) {
+            self.record(cost);
+            true
+        } else {
+            false
+        }
     }
 }
