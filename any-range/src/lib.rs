@@ -169,10 +169,10 @@ impl<T: Clone + PartialOrd + PartialEq + Debug> PartialOrd for AnyRange<T> {
             (AnyRange::RangeInclusive(a), AnyRange::RangeInclusive(b))
                 if a.start() == b.start() =>
             {
-                a.end().partial_cmp(&b.end())
+                a.end().partial_cmp(b.end())
             }
             (AnyRange::RangeInclusive(a), AnyRange::RangeInclusive(b)) => {
-                a.start().partial_cmp(&b.start())
+                a.start().partial_cmp(b.start())
             }
             (AnyRange::RangeTo(a), AnyRange::RangeTo(b)) => a.end.partial_cmp(&b.end),
             (AnyRange::RangeToInclusive(a), AnyRange::RangeToInclusive(b)) => {

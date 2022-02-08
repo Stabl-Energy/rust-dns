@@ -115,7 +115,7 @@ impl PartialEq for ArcNode {
 impl Eq for ArcNode {}
 impl Hash for ArcNode {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Arc::as_ptr(&self.0).hash(state)
+        Arc::as_ptr(&self.0).hash(state);
     }
 }
 // impl Debug for ArcNode {
@@ -162,10 +162,7 @@ impl Inner {
 
     pub fn revoke(&mut self) -> (Option<Waker>, HashSet<ArcNode>) {
         self.revoked = true;
-        (
-            self.opt_waker.take(),
-            core::mem::replace(&mut self.subs, HashSet::new()),
-        )
+        (self.opt_waker.take(), core::mem::take(&mut self.subs))
     }
 }
 
@@ -207,7 +204,7 @@ impl Node {
     }
 
     pub fn add_sub(self: &Arc<Self>, node: &Arc<Node>) {
-        self.inner.lock().unwrap().add_sub(node)
+        self.inner.lock().unwrap().add_sub(node);
     }
 
     fn remove_sub(&self, node: &Arc<Node>) {
@@ -392,7 +389,7 @@ impl Permit {
 }
 impl Drop for Permit {
     fn drop(&mut self) {
-        self.node.revoke_and_remove_from_superior()
+        self.node.revoke_and_remove_from_superior();
     }
 }
 impl Clone for Permit {

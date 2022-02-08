@@ -1,0 +1,25 @@
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["network-programming"]
+description = "Proababilistic rate limiter.  Smoothly shed load to prevent overload."
+edition = "2021"
+keywords = ["rate", "limit", "throttle", "load", "governor"]
+license = "Apache-2.0"
+name = "prob-rate-limiter"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+oorandom = "11.1.3"
+
+[dev-dependencies]
+criterion = { version = "0.3", features = [
+    "html_reports" # Disable spammy warning message.
+] }
+governor = "^0.4.1"
+r8limit = "^0.2.2"
+
+[[bench]]
+name = "bench"
+harness = false

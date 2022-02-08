@@ -106,7 +106,7 @@ pub struct SafeLockGuard<'x> {
 impl<'x> Drop for SafeLockGuard<'x> {
     fn drop(&mut self) {
         if !self.inner.locked.swap(false, Ordering::Release) {
-            unreachable!()
+            unreachable!();
         }
     }
 }
@@ -204,7 +204,7 @@ impl SafeLock {
                 .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
                 .is_ok()
             {
-                return Some(SafeLockGuard { inner: &self });
+                return Some(SafeLockGuard { inner: self });
             }
             std::thread::yield_now();
         }
