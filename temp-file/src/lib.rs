@@ -77,7 +77,8 @@
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::path::{Path, PathBuf};
 
-static COUNTER: AtomicU32 = AtomicU32::new(0);
+#[doc(hidden)]
+pub static INTERNAL_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 pub struct TempFileBuilder {
     dir_path: Option<PathBuf>,
@@ -163,7 +164,7 @@ impl TempFile {
             "{}{:x}{:x}{}",
             prefix.unwrap_or(""),
             std::process::id(),
-            COUNTER.fetch_add(1, Ordering::AcqRel),
+            INTERNAL_COUNTER.fetch_add(1, Ordering::AcqRel),
             suffix.unwrap_or(""),
         );
         let file_path = dir.join(filename);
@@ -344,6 +345,3 @@ pub fn empty() -> TempFile {
 pub fn with_contents(contents: &[u8]) -> TempFile {
     TempFile::new().unwrap().with_contents(contents).unwrap()
 }
-
-#[cfg(test)]
-mod test;
