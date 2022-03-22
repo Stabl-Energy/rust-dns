@@ -8,9 +8,10 @@ license = "Apache-2.0"
 name = "temp-file"
 readme = "Readme.md"
 repository = "https://gitlab.com/leonhard-llc/ops"
-version = "0.1.6"
+version = "0.1.7"
 
 [dependencies]
 
 [dev-dependencies]
 safe-lock = { path = "../safe-lock", version = "^0.1" }
+temp-dir = "0.1"

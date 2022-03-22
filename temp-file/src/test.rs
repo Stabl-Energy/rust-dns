@@ -1,18 +1,36 @@
-use crate::{TempFile, COUNTER};
+use crate::{TempFile, TempFileBuilder, COUNTER};
 use core::sync::atomic::Ordering;
 use safe_lock::SafeLock;
+use std::collections::HashSet;
 use std::io::ErrorKind;
+use std::path::Path;
+use temp_dir::TempDir;
 
 // The error tests require all tests to run single-threaded.
 static LOCK: SafeLock = SafeLock::new();
+
+fn get_file_len(temp_file: &TempFile) -> Result<u64, std::io::Error> {
+    let path = temp_file.path();
+    let metadata = std::fs::metadata(path)?;
+    if metadata.is_file() {
+        Ok(metadata.len())
+    } else {
+        Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("{:?} is not a file", path),
+        ))
+    }
+}
+
+fn path_exists(path: &Path) -> bool {
+    !matches!(std::fs::metadata(&path), Err(e) if e.kind() == ErrorKind::NotFound)
+}
 
 #[test]
 fn empty() {
     let _guard = LOCK.lock();
     let temp_file = crate::empty();
-    let metadata = std::fs::metadata(temp_file.path()).unwrap();
-    assert!(metadata.is_file());
-    assert_eq!(0, metadata.len());
+    assert_eq!(0, get_file_len(&temp_file).unwrap());
     std::fs::write(temp_file.path(), b"abc").unwrap();
     assert_eq!("abc", std::fs::read_to_string(temp_file.path()).unwrap());
     let temp_file2 = crate::empty();
@@ -39,12 +57,47 @@ fn empty_error() {
 fn with_contents() {
     let _guard = LOCK.lock();
     let temp_file = crate::with_contents(b"abc");
-    let metadata = std::fs::metadata(temp_file.path()).unwrap();
-    assert!(metadata.is_file());
-    assert_eq!(3, metadata.len());
+    assert_eq!(3, get_file_len(&temp_file).unwrap());
     assert_eq!("abc", std::fs::read_to_string(temp_file.path()).unwrap());
     std::fs::write(temp_file.path(), b"def").unwrap();
     assert_eq!("def", std::fs::read_to_string(temp_file.path()).unwrap());
+}
+
+#[test]
+fn builder_empty() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFileBuilder::new().build().unwrap();
+    assert!(path_exists(temp_file.path()));
+}
+
+#[test]
+fn builder_all_options() {
+    let _guard = LOCK.lock();
+    let temp_dir = TempDir::with_prefix("dir1").unwrap();
+    let temp_file = TempFileBuilder::new()
+        .in_dir(temp_dir.path())
+        .prefix("prefix1")
+        .suffix("suffix1")
+        .build()
+        .unwrap();
+    assert!(path_exists(temp_file.path()));
+    assert_eq!(
+        Some(temp_dir.path()),
+        temp_file.path().parent(),
+        "{:?}",
+        temp_file
+    );
+    let filename = temp_file.path().file_name().unwrap();
+    assert!(
+        filename.to_str().unwrap().starts_with("prefix1"),
+        "{:?}",
+        temp_file
+    );
+    assert!(
+        filename.to_str().unwrap().ends_with("suffix1"),
+        "{:?}",
+        temp_file
+    );
 }
 
 #[test]
@@ -53,9 +106,7 @@ fn temp_file_new() {
     let temp_file = TempFile::new().unwrap();
     println!("{:?}", temp_file.path());
     println!("{:?}", TempFile::new().unwrap().path());
-    let metadata = std::fs::metadata(temp_file.path()).unwrap();
-    assert!(metadata.is_file());
-    assert_eq!(0, metadata.len());
+    assert_eq!(0, get_file_len(&temp_file).unwrap());
     std::fs::write(temp_file.path(), b"abc").unwrap();
     assert_eq!("abc", std::fs::read_to_string(temp_file.path()).unwrap());
     let temp_file2 = TempFile::new().unwrap();
@@ -79,37 +130,39 @@ fn temp_file_new_error() {
 }
 
 #[test]
-fn temp_file_with_prefix() {
+fn temp_file_in_dir() {
     let _guard = LOCK.lock();
-    let temp_file = TempFile::with_prefix("prefix1").unwrap();
-    let name = temp_file.path().file_name().unwrap();
-    assert!(
-        name.to_str().unwrap().starts_with("prefix1"),
+    let temp_dir = TempDir::with_prefix("dir1").unwrap();
+    let temp_file = TempFile::in_dir(temp_dir.path()).unwrap();
+    assert_eq!(
+        Some(temp_dir.path()),
+        temp_file.path().parent(),
         "{:?}",
         temp_file
     );
-    let metadata = std::fs::metadata(temp_file.path()).unwrap();
-    assert!(metadata.is_file());
-    assert_eq!(0, metadata.len());
-    std::fs::write(temp_file.path(), b"abc").unwrap();
-    assert_eq!("abc", std::fs::read_to_string(temp_file.path()).unwrap());
-    let temp_file2 = TempFile::new().unwrap();
-    assert_ne!(temp_file.path(), temp_file2.path());
 }
 
 #[test]
-fn temp_file_with_prefix_error() {
+fn temp_file_with_prefix() {
     let _guard = LOCK.lock();
-    let previous_counter_value = COUNTER.load(Ordering::SeqCst);
     let temp_file = TempFile::with_prefix("prefix1").unwrap();
-    COUNTER.store(previous_counter_value, Ordering::SeqCst);
-    let e = TempFile::with_prefix("prefix1").unwrap_err();
-    assert_eq!(std::io::ErrorKind::AlreadyExists, e.kind());
+    let filename = temp_file.path().file_name().unwrap();
     assert!(
-        e.to_string()
-            .starts_with(&format!("error creating file {:?}", temp_file.path())),
-        "unexpected error {:?}",
-        e
+        filename.to_str().unwrap().starts_with("prefix1"),
+        "{:?}",
+        temp_file
+    );
+}
+
+#[test]
+fn temp_file_with_suffix() {
+    let _guard = LOCK.lock();
+    let temp_file = TempFile::with_suffix("suffix1").unwrap();
+    let filename = temp_file.path().file_name().unwrap();
+    assert!(
+        filename.to_str().unwrap().ends_with("suffix1"),
+        "{:?}",
+        temp_file
     );
 }
 
@@ -117,9 +170,7 @@ fn temp_file_with_prefix_error() {
 fn temp_file_with_contents() {
     let _guard = LOCK.lock();
     let temp_file = TempFile::new().unwrap().with_contents(b"abc").unwrap();
-    let metadata = std::fs::metadata(temp_file.path()).unwrap();
-    assert!(metadata.is_file());
-    assert_eq!(3, metadata.len());
+    assert_eq!(3, get_file_len(&temp_file).unwrap());
     assert_eq!("abc", std::fs::read_to_string(temp_file.path()).unwrap());
     std::fs::write(temp_file.path(), b"def").unwrap();
     assert_eq!("def", std::fs::read_to_string(temp_file.path()).unwrap());
@@ -149,10 +200,7 @@ fn cleanup() {
     let temp_file = TempFile::new().unwrap();
     let path = temp_file.path().to_path_buf();
     temp_file.cleanup().unwrap();
-    assert_eq!(
-        ErrorKind::NotFound,
-        std::fs::metadata(&path).unwrap_err().kind()
-    );
+    assert!(!path_exists(&path));
 }
 
 #[test]
@@ -161,10 +209,7 @@ fn leak_then_cleanup() {
     let temp_file = TempFile::new().unwrap();
     let path = temp_file.path().to_path_buf();
     temp_file.cleanup().unwrap();
-    assert_eq!(
-        ErrorKind::NotFound,
-        std::fs::metadata(&path).unwrap_err().kind()
-    );
+    assert!(!path_exists(&path));
 }
 
 #[test]
@@ -174,10 +219,7 @@ fn cleanup_already_deleted() {
     let path = temp_file.path().to_path_buf();
     std::fs::remove_file(&path).unwrap();
     temp_file.cleanup().unwrap();
-    assert_eq!(
-        ErrorKind::NotFound,
-        std::fs::metadata(&path).unwrap_err().kind()
-    );
+    assert!(!path_exists(&path));
 }
 
 #[test]
@@ -205,10 +247,7 @@ fn test_drop() {
     let path = temp_file.path().to_path_buf();
     TempFile::new().unwrap();
     drop(temp_file);
-    assert_eq!(
-        ErrorKind::NotFound,
-        std::fs::metadata(&path).unwrap_err().kind()
-    );
+    assert!(!path_exists(&path));
 }
 
 #[test]
@@ -270,4 +309,25 @@ fn leak() {
     f.leak();
     std::fs::metadata(&path).unwrap();
     std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn test_derived() {
+    let _guard = LOCK.lock();
+    COUNTER.store(100, Ordering::SeqCst);
+    let t1 = TempFile::new().unwrap();
+    let t2 = TempFile::new().unwrap();
+    // Clone
+    let t1_clone = t1.clone();
+    // Debug
+    assert!(format!("{:?}", t2).contains("TempFile"));
+    // PartialEq
+    assert_eq!(t1, t1_clone);
+    // Ord
+    assert!(t1 < t2);
+    // Hash
+    let mut set = HashSet::new();
+    set.insert(t1);
+    set.insert(t1_clone);
+    assert_eq!(1, set.len());
 }
