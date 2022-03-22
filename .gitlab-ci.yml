@@ -11,7 +11,7 @@ variables:
 
 cache:
   # Increment the 'gen' number to clear the caches.
-  key: $CI_JOB_NAME-$CI_COMMIT_BRANCH-gen1
+  key: $CI_JOB_NAME-$CI_COMMIT_BRANCH-gen2
   paths:
     - $CARGO_TARGET_DIR/
     - $CARGO_HOME/
@@ -22,17 +22,10 @@ rust-stable:
   script:
     - rustc --version && cargo --version
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
-    - cargo install cargo-readme
-    - ls -alF "$CI_PROJECT_DIR"
-    # Once cargo-geiger releases 0.11, install it with cargo not git.
-    # https://github.com/rust-secure-code/cargo-geiger/issues/177
-    - git clone https://github.com/anderejd/cargo-geiger.git "$CI_BUILDS_DIR"/cargo-geiger
-    - (cd "$CI_BUILDS_DIR"/cargo-geiger/cargo-geiger && git branch release_prep && git checkout d77a92a1f226a8b3c58e724bbbc9bb0bf39fe1be && cargo build --release --features vendored-openssl)
-    - mv "$CARGO_TARGET_DIR"/release/cargo-geiger "$CARGO_HOME"/bin/
-    - cargo fmt --version || rustup component add rustfmt
-    - cargo fmt --version
-    - cargo clippy --version || rustup component add clippy
-    - cargo clippy --version
+    - cargo readme --version || cargo install cargo-readme && cargo readme --version
+    - cargo geiger --version || cargo install cargo-geiger && cargo geiger --version
+    - cargo fmt --version || rustup component add rustfmt && cargo fmt --version
+    - cargo clippy --version || rustup component add clippy && cargo clippy --version
     - git --version
     - ./check-all.sh
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
