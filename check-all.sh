@@ -1,21 +1,36 @@
 #!/usr/bin/env bash
-# Use bash because because it has a built-in 'time' command.
-set -e
-cd "$(dirname "$0")"
-echo "PWD=$(pwd)"
-time (
-  set -x
-  ./check.sh any-range "$@"
-  ./check.sh build-data "$@"
-  ./check.sh build-data-test "$@"
-  ./check.sh fair-rate-limiter "$@"
-  ./check.sh permit "$@"
-  ./check.sh prob-rate-limiter "$@"
-  ./check.sh rustls-pin "$@"
-  ./check.sh safe-dns "$@"
-  ./check.sh safe-lock "$@"
-  ./check.sh temp-dir "$@"
-  ./check.sh temp-file "$@"
-  set +x
-  echo -n "$(basename "$0") finished."
+projects="any-range \
+  build-data \
+  build-data-test \
+  fair-rate-limiter \
+  permit \
+  prob-rate-limiter \
+  rustls-pin \
+  safe-dns \
+  safe-lock"
+top_level_dir=$(
+  cd "$(dirname $0)"
+  pwd
 )
+set -e
+set -x
+
+time cargo check --verbose
+time cargo build --verbose
+time cargo fmt --all -- --check
+time cargo clippy --all-targets --all-features -- -D clippy::pedantic
+
+for project in $projects ; do
+  cd "$top_level_dir/$project/"
+  "$top_level_dir/check-readme.sh"
+done
+
+cd "$top_level_dir/"
+time cargo test --verbose
+
+for project in $projects; do
+  cd "$top_level_dir/$project/"
+  time cargo publish --dry-run "$@"
+done
+
+echo "$0 finished"
