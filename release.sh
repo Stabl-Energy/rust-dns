@@ -1,17 +1,9 @@
 #!/usr/bin/env bash
-set -e
-
-script_dir="$(
-  cd "$(dirname "$0")"
-  pwd
-)"
-
-if [ "$1" != "--allow-dirty" ] && [ -n "$(git status -s)" ]; then
-  echo "ERROR git repository has uncommited changes." >&2
-  exit 1
-fi
-
-"$script_dir"/check-all.sh
+(
+  set -e
+  set -x
+  ../check.sh "$@"
+) || exit 1
 
 if ! (git branch --show-current | grep -q -E '^main$'); then
   echo "Current git branch is not main."
@@ -48,4 +40,4 @@ fi
 set -e
 set -x
 git push --follow-tags
-cargo +nightly publish
+cargo +stable publish "$@"
