@@ -1,19 +1,19 @@
+//! rustls-pin
+//! ==========
 //! [![crates.io version](https://img.shields.io/crates/v/rustls-pin.svg)](https://crates.io/crates/rustls-pin)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/rustls-pin/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # rustls-pin
-//!
 //! Server certificate pinning with `rustls`.
 //!
-//! ## Features
+//! # Features
 //! - Make a TLS connection to a server
 //! - Check that the server is using an allowed certificate
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
 //!
-//! ## How to Update Pinned Certificates
+//! # How to Update Pinned Certificates
 //!
 //! Before switching the server to a new certificate, you need to upgrade the
 //! clients to accept both the current certificate and the new one.
@@ -33,7 +33,7 @@
 //! - Client v5: cert3, cert4, cert5
 //! - Server cert4
 //!
-//! ## Example
+//! # Example
 //! ```
 //! # let listener = std::net::TcpListener::bind(&("127.0.0.1", 0)).unwrap();
 //! # let addr = listener.local_addr().unwrap();
@@ -67,10 +67,10 @@
 //! The server's stream read/write fails with:
 //! `"Custom { kind: InvalidData, error: AlertReceived(BadCertificate) }"`.
 //!
-//! ## Alternatives
+//! # Alternatives
 //! - [rustls#227 Implement support for certificate pinning](https://github.com/ctz/rustls/issues/227)
 //!
-//! ## Changelog
+//! # Changelog
 //! - v0.1.2
 //!   - Add "How to Update Pinned Certificates" to docs.
 //!   - Add error handling to example
@@ -82,13 +82,6 @@
 //!   The code is already
 //!   [written](https://github.com/paritytech/x509-signature/issues/4#issuecomment-691729509).
 //!   The tests may be challening to write.
-//!
-//! ## Happy Contributors 🙂
-//! Fixing bugs and adding features is easy and fast.
-//! Send us a pull request and we intend to:
-//! - Always respond within 24 hours
-//! - Provide clear & concrete feedback
-//! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
 
 use rustls::ClientSession;

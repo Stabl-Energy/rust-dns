@@ -1,13 +1,13 @@
+//! build-data
+//! ==========
 //! [![crates.io version](https://img.shields.io/crates/v/build-data.svg)](https://crates.io/crates/build-data)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/build-data/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # build-data
-//!
 //! Include build data in your program.
 //!
-//! ## Features
+//! # Features
 //! - Saves build-time data:
 //!   - Git commit, branch, and dirtiness
 //!   - Source modification date & time
@@ -24,7 +24,7 @@
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
 //!
-//! ## Alternatives
+//! # Alternatives
 //! - Environment variables that cargo sets for crates:
 //!   - `CARGO_PKG_NAME`
 //!   - `CARGO_PKG_VERSION`
@@ -89,9 +89,9 @@
 //! }
 //! ```
 //!
-//! ## Cargo Geiger Safety Report
+//! # Cargo Geiger Safety Report
 //!
-//! ## Changelog
+//! # Changelog
 //! - v0.1.3 - Update docs.
 //! - v0.1.2 - Rewrote based on
 //!     [feedback](https://www.reddit.com/r/rust/comments/mqnbvw/)
@@ -99,14 +99,7 @@
 //! - v0.1.1 - Update docs.
 //! - v0.1.0 - Initial version
 //!
-//! ## To Do
-//!
-//! ## Happy Contributors 🙂
-//! Fixing bugs and adding features is easy and fast.
-//! Send us a pull request and we intend to:
-//! - Always respond within 24 hours
-//! - Provide clear & concrete feedback
-//! - Immediately make a new release for your accepted change
+//! # To Do
 #![forbid(unsafe_code)]
 #![allow(non_snake_case)]
 

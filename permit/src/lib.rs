@@ -1,19 +1,19 @@
+//! permit
+//! ======
 //! [![crates.io version](https://img.shields.io/crates/v/permit.svg)](https://crates.io/crates/permit)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/permit/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # permit
-//!
 //! [`permit::Permit`](https://docs.rs/permit/latest/permit/struct.Permit.html)
 //! is a struct for cancelling operations.
 //!
-//! ## Use Cases
+//! # Use Cases
 //! - Graceful server shutdown
 //! - Cancel operations that take too long
 //! - Stop in-flight operations when revoking authorization
 //!
-//! ## Features
+//! # Features
 //! - Subordinate permits.
 //!   Revoking a permit also revokes its subordinates, recursively.
 //! - Drop a permit to revoke its subordinates, recursively.
@@ -24,11 +24,11 @@
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
 //!
-//! ## Limitations
+//! # Limitations
 //! - Does not hold data values
 //! - Allocates.  Uses [`alloc::sync::Arc`](https://doc.rust-lang.org/alloc/sync/struct.Arc.html).
 //!
-//! ## Alternatives
+//! # Alternatives
 //! - [`async_ctx`](https://crates.io/crates/async_ctx)
 //!   - Good API
 //!   - Async only
@@ -46,9 +46,9 @@
 //!     a returned `Box<Fn>`.
 //!   - Unmaintained
 //!
-//! ## Related Crates
+//! # Related Crates
 //!
-//! ## Example
+//! # Example
 //!
 //! Graceful shutdown:
 //! ```
@@ -71,9 +71,9 @@
 //!     core::time::Duration::from_secs(3));
 //! ```
 //!
-//! ## Cargo Geiger Safety Report
+//! # Cargo Geiger Safety Report
 //!
-//! ## Changelog
+//! # Changelog
 //! - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
 //!   where `revoke()` and then `wait()` would not wait.
 //! - v0.1.3
@@ -83,13 +83,6 @@
 //! - v0.1.2 - Implement `Future`
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
-//!
-//! ## Happy Contributors 🙂
-//! Fixing bugs and adding features is easy and fast.
-//! Send us a pull request and we intend to:
-//! - Always respond within 24 hours
-//! - Provide clear & concrete feedback
-//! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
 use core::fmt::Debug;
 use std::collections::HashSet;

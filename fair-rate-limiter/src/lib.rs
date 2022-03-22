@@ -1,15 +1,15 @@
+//! fair-rate-limiter
+//! =================
 //! [![crates.io version](https://img.shields.io/crates/v/fair-rate-limiter.svg)](https://crates.io/crates/fair-rate-limiter)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/fair-rate-limiter/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # fair-rate-limiter
-//!
 //! Use `RateLimiter` struct to detect overload and
 //! fairly shed load from diverse IP addresses, users, or systems.
 //! Mitigate denial-of-service (`DoS`) attacks.
 //!
-//! ## Use Cases
+//! # Use Cases
 //! - DNS server: DNS servers must send UDP replies without a handshake.
 //!   Your DNS server could be used in a
 //!   [DNS amplification attacks](https://www.cisa.gov/uscert/ncas/alerts/TA13-088A).
@@ -21,7 +21,7 @@
 //! - API server: Shed load from misbehaving clients
 //!   and keep the API available for other clients.
 //!
-//! ## Features
+//! # Features
 //! - Global throughput limit
 //! - IPv4 & IPv6
 //! - `forbid(unsafe_code)`, depends only on crates that are `forbid(unsafe_code)`
@@ -31,9 +31,9 @@
 //!   - Public service tracking 1M clients: 500ns per check, 2M checks per second
 //!   - `DDoS` mitigation tracking 30M clients: 750ns per check, 1.3M checks per second
 //!
-//! ## Limitations
+//! # Limitations
 //!
-//! ## Alternatives
+//! # Alternatives
 //! - [governor](https://crates.io/crates/governor)
 //!   - Popular
 //!   - Lots of features
@@ -47,10 +47,10 @@
 //!   - Async tasks can wait for their turn to use a resource.
 //!   - Unsuitable for load shedding.
 //!
-//! ## Related Crates
+//! # Related Crates
 //! - [safe-dns](https://crates.io/crates/safe-dns) uses this
 //!
-//! ## Example
+//! # Example
 //! ```
 //! # use fair_rate_limiter::{new_fair_ip_address_rate_limiter, IpAddrKey, FairRateLimiter};
 //! # use oorandom::Rand32;
@@ -73,9 +73,9 @@
 //! assert!(!limiter.check(key, 4, now));
 //! ```
 //!
-//! ## Cargo Geiger Safety Report
+//! # Cargo Geiger Safety Report
 //!
-//! ## Changelog
+//! # Changelog
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO

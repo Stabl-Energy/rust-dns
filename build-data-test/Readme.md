@@ -1,4 +1,5 @@
-# build-data-test
+build-data-test
+===============
 This is an integration test for
 [`build-data`](https://crates.io/crates/build-data).
 

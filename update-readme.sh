@@ -21,10 +21,10 @@ done
 
 echo "PWD=$(pwd)"
 set -x
-cargo readme >"$filename"
+cargo readme --no-title --no-indent-headings >"$filename"
 set +x
 
-if grep --quiet '//! ## Cargo Geiger Safety Report' src/lib.rs; then
+if grep --quiet 'Cargo Geiger Safety Report' src/lib.rs; then
   time (
     set -x
     cargo geiger --update-readme --readme-path "$filename" --output-format GitHubMarkdown

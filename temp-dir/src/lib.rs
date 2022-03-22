@@ -1,13 +1,13 @@
+//! temp-dir
+//! ========
 //! [![crates.io version](https://img.shields.io/crates/v/temp-dir.svg)](https://crates.io/crates/temp-dir)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/temp-dir/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # temp-dir
-//!
 //! Provides a `TempDir` struct.
 //!
-//! ## Features
+//! # Features
 //! - Makes a directory in a system temporary directory
 //! - Recursively deletes the directory and its contents on drop
 //! - Deletes symbolic links and does not follow them.
@@ -16,7 +16,7 @@
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
 //!
-//! ## Limitations
+//! # Limitations
 //! - Not security-hardened.
 //!   For example, directory and file names are predictable.
 //! - This crate uses
@@ -25,7 +25,7 @@
 //!   See [rust#29497](https://github.com/rust-lang/rust/issues/29497) and
 //!   [`remove_dir_all`](https://crates.io/crates/remove_dir_all) crate.
 //!
-//! ## Alternatives
+//! # Alternatives
 //! - [`tempfile`](https://crates.io/crates/tempfile)
 //!   - Popular and mature
 //!   - Contains `unsafe`, dependencies full of `unsafe`
@@ -40,10 +40,10 @@
 //!   - Contains `unsafe`
 //!   - No readme or online docs
 //!
-//! ## Related Crates
+//! # Related Crates
 //! - [`temp-file`](https://crates.io/crates/temp-file)
 //!
-//! ## Example
+//! # Example
 //! ```rust
 //! use temp_dir::TempDir;
 //! let d = TempDir::new().unwrap();
@@ -62,9 +62,9 @@
 //!     "{:?}", TempDir::new().unwrap().path());
 //! ```
 //!
-//! ## Cargo Geiger Safety Report
+//! # Cargo Geiger Safety Report
 //!
-//! ## Changelog
+//! # Changelog
 //! - v0.1.11
 //!   - Return `std::io::Error` instead of `String`.
 //!   - Add
@@ -92,13 +92,6 @@
 //! - v0.1.2 - Update docs
 //! - v0.1.1 - Fix license
 //! - v0.1.0 - Initial version
-//!
-//! ## Happy Contributors 🙂
-//! Fixing bugs and adding features is easy and fast.
-//! Send us a pull request and we intend to:
-//! - Always respond within 24 hours
-//! - Provide clear & concrete feedback
-//! - Immediately make a new release for your accepted change
 #![forbid(unsafe_code)]
 use core::sync::atomic::{AtomicU32, Ordering};
 use std::path::{Path, PathBuf};

@@ -1,13 +1,13 @@
+safe-dns
+========
 [![crates.io version](https://img.shields.io/crates/v/safe-dns.svg)](https://crates.io/crates/safe-dns)
 [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/safe-dns/LICENSE)
 [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 
-# safe-dns
-
 A threaded DNS server library.
 
-## Use Cases
+# Use Cases
 - Make your API server its own DNS server.
   This eliminates the DNS server as a separate point of failure.
 - Keep your DNS config in code, next to your server code.
@@ -17,20 +17,52 @@ A threaded DNS server library.
   This is useful for servers that don't listen on port 80.
   Servers on port 80 can use HTTP for domain validation and don't need to use this.
 
-## Features
+# Features
 - Depends only on `std`
 - `forbid(unsafe_code)`
 - ?% test coverage
 
-## Limitations
+# Limitations
 
-## Example
+# Example
 
-## Related Crates
+# Related Crates
 
-## Cargo Geiger Safety Report
+# Cargo Geiger Safety Report
+```
 
-## Changelog
+Metric output format: x/y
+    x = unsafe code used by the build
+    y = total unsafe code found in the crate
+
+Symbols: 
+    🔒  = No `unsafe` usage found, declares #![forbid(unsafe_code)]
+    ❓  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
+    ☢️  = `unsafe` usage found
+
+Functions  Expressions  Impls  Traits  Methods  Dependency
+
+0/0        0/0          0/0    0/0     0/0      🔒  safe-dns 0.1.0
+0/0        0/0          0/0    0/0     0/0      🔒  ├── fixed-buffer 0.3.1
+0/0        0/0          0/0    0/0     0/0      🔒  ├── multimap 0.8.3
+0/0        5/5          0/0    0/0     0/0      ☢️  │   └── serde 1.0.136
+0/0        0/0          0/0    0/0     0/0      ❓  │       └── serde_derive 1.0.136
+0/0        0/12         0/0    0/0     0/3      ❓  │           ├── proc-macro2 1.0.36
+0/0        0/0          0/0    0/0     0/0      🔒  │           │   └── unicode-xid 0.2.2
+0/0        0/0          0/0    0/0     0/0      ❓  │           ├── quote 1.0.16
+0/0        0/12         0/0    0/0     0/3      ❓  │           │   └── proc-macro2 1.0.36
+0/0        0/47         0/3    0/0     0/2      ❓  │           └── syn 1.0.89
+0/0        0/12         0/0    0/0     0/3      ❓  │               ├── proc-macro2 1.0.36
+0/0        0/0          0/0    0/0     0/0      ❓  │               ├── quote 1.0.16
+0/0        0/0          0/0    0/0     0/0      🔒  │               └── unicode-xid 0.2.2
+0/0        0/0          0/0    0/0     0/0      🔒  ├── permit 0.1.4
+0/0        0/0          0/0    0/0     0/0      🔒  └── prob-rate-limiter 0.1.0
+0/0        0/0          0/0    0/0     0/0      🔒      └── oorandom 11.1.3
+
+0/0        5/64         0/3    0/0     0/5    
+
+```
+# Changelog
 - v0.1.0 - Initial version
 
 # To Do
@@ -44,7 +76,7 @@ A threaded DNS server library.
 - Caching client
 - Recursive resolver
 
-## Alternatives
+# Alternatives
 
 
 License: Apache-2.0
