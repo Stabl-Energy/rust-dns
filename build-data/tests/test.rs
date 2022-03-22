@@ -8,6 +8,7 @@ use core::time::Duration;
 use rusty_fork::rusty_fork_test;
 use spectral::assert_that;
 use spectral::numeric::OrderedAssertions;
+use std::convert::TryFrom;
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -40,10 +41,13 @@ impl Drop for TempEnvVarChange {
 }
 
 fn epoch_time() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64
+    i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+    )
+    .unwrap_or(i64::MAX)
 }
 
 fn exec_cargo_bin(name: &str) -> String {
@@ -54,28 +58,28 @@ fn exec_cargo_bin(name: &str) -> String {
             .unwrap()
             .ok()
             .unwrap()
-            .stdout
-            .clone(),
+            .stdout,
     )
     .unwrap()
 }
 
-pub fn expect_elapsed(before: Instant, range_ms: Range<u64>) {
-    if range_ms.is_empty() {
-        panic!("invalid range {:?}", range_ms)
-    }
+fn expect_elapsed(before: Instant, range_ms: Range<u64>) {
+    assert!(!range_ms.is_empty(), "invalid range {:?}", range_ms);
     let elapsed = before.elapsed();
     let duration_range = Duration::from_millis(range_ms.start)..Duration::from_millis(range_ms.end);
-    if !duration_range.contains(&elapsed) {
-        panic!("{:?} elapsed, out of range {:?}", elapsed, duration_range);
-    }
+    assert!(
+        duration_range.contains(&elapsed),
+        "{:?} elapsed, out of range {:?}",
+        elapsed,
+        duration_range
+    );
 }
 
 fn expect_in<T: Debug + PartialOrd>(
-    value: T,
+    value: &T,
     range: impl RangeBounds<T> + Debug,
 ) -> Result<(), String> {
-    if !range.contains(&value) {
+    if !range.contains(value) {
         return Err(format!("value `{:?}` not in `{:?}`", value, range));
     }
     Ok(())
@@ -109,6 +113,7 @@ fn once_i64_static() {
 #[test]
 fn once_i64_concurrent() {
     use build_data::OnceI64;
+    use spectral::iter::ContainingIntoIterAssertions;
     let value = Arc::new(OnceI64::new());
     let call_count = Arc::new(AtomicU8::new(0));
     let before = Instant::now();
@@ -132,7 +137,6 @@ fn once_i64_concurrent() {
     expect_elapsed(before, 50..150);
     value.get(|| panic!()).unwrap();
     assert_eq!(1, call_count.load(Ordering::Relaxed));
-    use spectral::iter::ContainingIntoIterAssertions;
     assert_that(&[111, 222]).contains(&results[0]);
     for n in &results {
         assert_eq!(results[0], *n);
@@ -154,8 +158,8 @@ fn escape_ascii() {
 
 #[test]
 fn exec() {
-    let _guard = LOCK.lock().unwrap();
     use spectral::string::StrAssertions;
+    let _guard = LOCK.lock().unwrap();
     assert_that(&build_data::exec("nonexistent", &[]).unwrap_err().as_str())
         .contains("error executing");
     let err =
@@ -177,16 +181,19 @@ fn exec() {
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn format_date() {
     assert_eq!("2021-04-14Z", build_data::format_date(1618370707));
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn format_time() {
     assert_eq!("03:25:07Z", build_data::format_time(1618370707));
 }
 
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn format_timestamp() {
     assert_eq!(
         "2021-04-14T03:25:07Z",
@@ -200,11 +207,13 @@ fn test_now() {
     let value: i64 = build_data::now();
     let after = epoch_time();
     assert_eq!(value, build_data::now());
-    expect_in(value, before..=after).unwrap();
+    expect_in(&value, before..=after).unwrap();
 }
 
 #[test]
 fn get_env() {
+    use spectral::string::StrAssertions;
+    use std::os::unix::ffi::OsStringExt;
     assert_eq!(None, build_data::get_env("NONEXISTENT_ENV_VAR").unwrap());
     std::env::set_var("TEST_GET_ENV__EMPTY", "");
     assert_eq!(None, build_data::get_env("TEST_GET_ENV__EMPTY").unwrap());
@@ -223,10 +232,8 @@ fn get_env() {
         "value1",
         &build_data::get_env("TEST_GET_ENV__TRIM").unwrap().unwrap()
     );
-    use std::os::unix::ffi::OsStringExt;
     let non_utf8: OsString = OsString::from_vec(vec![0xC3_u8, 0x28]);
     std::env::set_var("TEST_GET_ENV__VAR_NON_UTF8", non_utf8);
-    use spectral::string::StrAssertions;
     assert_that(&build_data::get_env("TEST_GET_ENV__VAR_NON_UTF8").unwrap_err())
         .contains("non-utf8");
 }
@@ -358,6 +365,7 @@ fn rust_channel() {
 
 #[test]
 fn parse_rustc_version() {
+    use build_data::RustChannel;
     build_data::parse_rustc_version("").unwrap_err();
     build_data::parse_rustc_version("not a rustc version").unwrap_err();
     build_data::parse_rustc_version("rustc1.2.3").unwrap_err();
@@ -368,7 +376,6 @@ fn parse_rustc_version() {
     build_data::parse_rustc_version("1.2.3-invalid").unwrap_err();
     build_data::parse_rustc_version("1.2.3x").unwrap_err();
     build_data::parse_rustc_version("1.2.3-nightlyX").unwrap_err();
-    use build_data::RustChannel;
     assert_eq!(
         (String::from("1.53.0"), RustChannel::Stable),
         build_data::parse_rustc_version("rustc 1.53.0 (07e0e2ec2 2021-03-24)").unwrap()
@@ -415,7 +422,9 @@ fn parse_rustc_channel() {
     );
 }
 
+#[allow(clippy::unreadable_literal)]
 fn get_source_time_() {
+    use spectral::string::StrAssertions;
     let _source_date_epoch_guard = TempEnvVarChange::new("SOURCE_DATE_EPOCH", "");
     let path_guard = TempEnvVarChange::new(
         "PATH",
@@ -425,7 +434,6 @@ fn get_source_time_() {
             .join("fake-bin"),
     );
     let err = build_data::get_source_time().unwrap_err();
-    use spectral::string::StrAssertions;
     assert_that(&err).contains("failed parsing");
     assert_that(&err).contains("git");
     drop(path_guard);
@@ -440,10 +448,10 @@ rusty_fork_test! {
 }
 
 fn source_date_epoch_() {
-    let _change_guard = TempEnvVarChange::new("SOURCE_DATE_EPOCH", "not-digits");
     use spectral::string::StrAssertions;
+    let change_guard = TempEnvVarChange::new("SOURCE_DATE_EPOCH", "not-digits");
     assert_that(&build_data::get_source_time().unwrap_err()).contains("failed parsing");
-    drop(_change_guard);
+    drop(change_guard);
     let _change_guard = TempEnvVarChange::new("SOURCE_DATE_EPOCH", "123");
     assert_eq!(123, build_data::get_source_time().unwrap());
     assert_eq!(123, build_data::get_source_time().unwrap());
@@ -487,6 +495,7 @@ fn no_debug_rebuilds_release() {
 
 #[test]
 fn set_build_date() {
+    use spectral::iter::ContainingIntoIterAssertions;
     let _guard = LOCK.lock().unwrap();
     let before = chrono::Utc.timestamp(epoch_time(), 0).date().naive_utc();
     let stdout = exec_cargo_bin("test_set_build_date");
@@ -501,7 +510,6 @@ fn set_build_date() {
                 )
             })
             .unwrap();
-    use spectral::iter::ContainingIntoIterAssertions;
     assert_that(&[before, after]).contains(&value);
 }
 
@@ -526,7 +534,7 @@ fn set_build_time() {
         .and_time(time)
         .unwrap()
         .timestamp();
-    expect_in(value, before..=after).unwrap();
+    expect_in(&value, before..=after).unwrap();
 }
 
 #[test]
@@ -549,7 +557,7 @@ fn set_build_timestamp() {
         })
         .unwrap()
         .timestamp();
-    expect_in(value, before..=after).unwrap();
+    expect_in(&value, before..=after).unwrap();
 }
 
 #[test]
@@ -569,5 +577,5 @@ fn set_build_epoch_time() {
         })
         .unwrap()
         .timestamp();
-    expect_in(value, before..=after).unwrap();
+    expect_in(&value, before..=after).unwrap();
 }

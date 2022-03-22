@@ -121,7 +121,7 @@ fn connect_pinned_invalid_cert() {
     let mut stream = connect_pinned(addr, vec![othername_cert()]).unwrap();
     let mut response = String::new();
     match stream.read_to_string(&mut response) {
-        Err(e) if e.to_string() == "invalid certificate: UnknownIssuer".to_string() => {}
+        Err(e) if e.to_string() == *"invalid certificate: UnknownIssuer" => {}
         other => panic!("{:?}", other),
     };
 }

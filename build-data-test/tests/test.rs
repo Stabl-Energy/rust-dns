@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
 #[test]
+#[allow(clippy::range_plus_one)]
+#[allow(clippy::assign_op_pattern)]
 fn test() {
     assert!(safe_regex::regex!(br"[0-9]{4}-[0-9]{2}-[0-9]{2}Z")
         .is_match(env!("SOURCE_DATE").as_bytes()));

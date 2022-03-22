@@ -172,6 +172,7 @@ fn decide(recent_cost: u32, max_cost: u32, mut rand_float: impl FnMut() -> f32) 
 
 #[cfg(test)]
 #[test]
+#[allow(clippy::unreadable_literal)]
 fn test_decide() {
     assert!(!decide(0, 0, || unreachable!()));
     assert!(decide(0, 100, || unreachable!()));

@@ -25,7 +25,7 @@ fn empty_error() {
     let previous_counter_value = COUNTER.load(Ordering::SeqCst);
     let _temp_file = crate::empty();
     COUNTER.store(previous_counter_value, Ordering::SeqCst);
-    let any = std::panic::catch_unwind(|| crate::empty()).unwrap_err();
+    let any = std::panic::catch_unwind(crate::empty).unwrap_err();
     let msg = any.downcast_ref::<String>().unwrap();
     assert!(
         msg.contains("error creating file"),

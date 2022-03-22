@@ -126,9 +126,12 @@ fn simulate(
 
 macro_rules! assert_contains {
     ( $range:expr, $value:expr ) => {
-        if !$range.contains(&$value) {
-            panic!("{:?} is not in {:?}", $value, $range);
-        }
+        assert!(
+            $range.contains(&$value),
+            "{:?} is not in {:?}",
+            $value,
+            $range
+        )
     };
 }
 

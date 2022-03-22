@@ -10,7 +10,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut limiter = ProbRateLimiter::new(500.0).unwrap();
         b.iter(|| {
             limiter.check(black_box(1), clock);
-        })
+        });
     });
     c.bench_function("governor", |b| {
         let governor_limiter = governor::RateLimiter::direct(governor::Quota::per_second(
@@ -18,13 +18,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         ));
         b.iter(|| {
             let _ = governor_limiter.check();
-        })
+        });
     });
     c.bench_function("r8limit", |b| {
         let mut r8limit_limiter = r8limit::RateLimiter::new(500, Duration::from_secs(1));
         b.iter(|| {
             r8limit_limiter.attempt();
-        })
+        });
     });
 }
 

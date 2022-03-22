@@ -6,7 +6,7 @@ static _STATIC_SAFE_LOCK: SafeLock = SafeLock::new();
 
 #[test]
 fn default() {
-    let lock: SafeLock = Default::default();
+    let lock = SafeLock::default();
     let _guard = lock.lock();
 }
 
