@@ -26,7 +26,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("internal-10", |b| {
             b.iter(|| {
                 limiter.check(prng.rand_u32() % 11, black_box(1), clock);
-            })
+            });
         });
     }
     {
@@ -49,7 +49,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("public-1m", |b| {
             b.iter(|| {
                 limiter.check(prng.rand_u32() % 1_100_000, black_box(1), clock);
-            })
+            });
         });
     }
     {
@@ -72,7 +72,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         c.bench_function("ddos-30m", |b| {
             b.iter(|| {
                 limiter.check(prng.rand_u32() % 31_000_000, black_box(1), clock);
-            })
+            });
         });
     }
 }

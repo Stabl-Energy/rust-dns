@@ -4,7 +4,7 @@ use permit::{DeadlineExceeded, Permit};
 use safina_async_test::async_test;
 use std::time::{Duration, Instant};
 
-pub fn expect_elapsed(before: Instant, range_ms: Range<u64>) -> Result<(), String> {
+fn expect_elapsed(before: Instant, range_ms: Range<u64>) -> Result<(), String> {
     if range_ms.is_empty() {
         return Err(format!("invalid range {:?}", range_ms));
     }
@@ -31,7 +31,7 @@ fn new() {
 
 #[test]
 fn default() {
-    let pmt: Permit = Default::default();
+    let pmt = Permit::default();
     assert!(!pmt.is_revoked());
     pmt.revoke();
     assert!(pmt.is_revoked());
@@ -324,7 +324,7 @@ async fn await_many() {
     let before = Instant::now();
     let top_permit = permit::Permit::new();
     let mut promises = Vec::new();
-    for _ in 0..100000 {
+    for _ in 0..100_000 {
         let permit = top_permit.new_sub();
         let promise = safina::Promise::new();
         promises.push(promise.clone());

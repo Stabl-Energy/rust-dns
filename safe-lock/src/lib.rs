@@ -114,7 +114,7 @@ impl<'x> Drop for SafeLockGuard<'x> {
 #[cfg(test)]
 #[test]
 fn test_unreachable() {
-    let lock: SafeLock = Default::default();
+    let lock = SafeLock::default();
     let guard1 = lock.lock();
     let guard2 = SafeLockGuard { inner: &lock };
     drop(guard1);

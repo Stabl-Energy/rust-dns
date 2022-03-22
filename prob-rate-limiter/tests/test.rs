@@ -53,9 +53,12 @@ fn simulate(
 
 macro_rules! assert_contains {
     ( $range:expr, $value:expr ) => {
-        if !$range.contains(&$value) {
-            panic!("{:?} is not in {:?}", $value, $range);
-        }
+        assert!(
+            $range.contains(&$value),
+            "{:?} is not in {:?}",
+            $value,
+            $range
+        )
     };
 }
 
@@ -103,7 +106,7 @@ fn test_debug() {
     let debug_string = format!("{:?}", limiter);
     assert!(debug_string.contains("ProbRateLimiter"), "{}", debug_string);
     assert!(debug_string.contains("22"), "{}", debug_string);
-    assert!(debug_string.contains("7"), "{}", debug_string);
+    assert!(debug_string.contains('7'), "{}", debug_string);
 }
 
 #[test]
