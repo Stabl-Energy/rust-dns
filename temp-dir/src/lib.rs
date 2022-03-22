@@ -197,7 +197,7 @@ impl TempDir {
         })
     }
 
-    /// Remove the directory and its contents now.  Do nothing later on drop.
+    /// Remove the directory and its contents now.
     ///
     /// # Errors
     /// Returns an error if the directory exists and we fail to remove it and its contents.
@@ -210,10 +210,8 @@ impl TempDir {
     /// removing the directory or its contents.
     #[must_use]
     pub fn panic_on_cleanup_error(mut self) -> Self {
-        Self {
-            path_buf: self.path_buf.take(),
-            panic_on_delete_err: true,
-        }
+        self.panic_on_delete_err = true;
+        self
     }
 
     /// Do not delete the directory or its contents.
