@@ -1,8 +1,11 @@
 use permit::Permit;
+use prob_rate_limiter::ProbRateLimiter;
 use safe_dns::DnsRecord;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::process::Command;
 use std::time::Duration;
+
+// TODO: Test rate limiting.
 
 #[test]
 fn example() {
@@ -10,13 +13,20 @@ fn example() {
     let serve_udp_permit = permit.new_sub();
     let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = sock.local_addr().unwrap();
+    let response_bytes_rate_limiter = ProbRateLimiter::new(100_000.0).unwrap();
     let records = vec![
         DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap(),
         DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
         DnsRecord::new_cname("bbb.example.com", "ccc.example.com").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {
-        safe_dns::serve_udp(&serve_udp_permit, &sock, &records).unwrap()
+        safe_dns::serve_udp(
+            &serve_udp_permit,
+            &sock,
+            response_bytes_rate_limiter,
+            &records,
+        )
+        .unwrap();
     });
     assert!(Command::new("dig")
         .arg("@localhost")
@@ -62,18 +72,27 @@ fn example() {
 }
 
 #[test]
+#[allow(clippy::unusual_byte_groupings)]
+#[allow(clippy::too_many_lines)]
 fn hard_coded() {
     let permit = Permit::new();
     let serve_udp_permit = permit.new_sub();
     let server_sock =
         UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = server_sock.local_addr().unwrap();
+    let response_bytes_rate_limiter = ProbRateLimiter::new(100_000.0).unwrap();
     let records = vec![
         DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap(),
         DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {
-        safe_dns::serve_udp(&serve_udp_permit, &server_sock, &records).unwrap()
+        safe_dns::serve_udp(
+            &serve_udp_permit,
+            &server_sock,
+            response_bytes_rate_limiter,
+            &records,
+        )
+        .unwrap();
     });
     let client_sock =
         UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
@@ -87,7 +106,7 @@ fn hard_coded() {
     let mut buf = [0_u8; 512];
     // request type=A
     client_sock
-        .send(&vec![
+        .send(&[
             // ID
             0x9A,
             0x9A,
@@ -225,7 +244,7 @@ fn hard_coded() {
     );
     // request type=AAAA
     client_sock
-        .send(&vec![
+        .send(&[
             // ID
             0x9A,
             0x9A,
@@ -375,7 +394,7 @@ fn hard_coded() {
     );
     // request type=ANY
     client_sock
-        .send(&vec![
+        .send(&[
             // ID
             0x9A,
             0x9A,

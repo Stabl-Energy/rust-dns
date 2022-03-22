@@ -1,8 +1,10 @@
 use crate::{DnsError, DnsMessage, DnsName, DnsOpCode, DnsRecord, DnsType};
 use fixed_buffer::FixedBuf;
 use multimap::MultiMap;
+use prob_rate_limiter::ProbRateLimiter;
+use std::convert::TryFrom;
 use std::io::ErrorKind;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// # Errors
 /// Returns `Err` when the request is malformed or the server is not configured to answer the
@@ -60,9 +62,11 @@ pub fn make_name_to_records(records: &[DnsRecord]) -> MultiMap<&DnsName, &DnsRec
 
 /// # Errors
 /// Returns `Err` when socket operations fail.
+#[allow(clippy::missing_panics_doc)]
 pub fn serve_udp(
     permit: &permit::Permit,
     sock: &std::net::UdpSocket,
+    mut response_bytes_rate_limiter: ProbRateLimiter,
     records: &[DnsRecord],
 ) -> Result<(), String> {
     sock.set_read_timeout(Some(Duration::from_millis(500)))
@@ -89,6 +93,11 @@ pub fn serve_udp(
             }
             Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
         };
+        let now = Instant::now();
+        if !response_bytes_rate_limiter.attempt(now) {
+            println!("dropping request");
+            continue;
+        }
         let out = match process_datagram(&name_to_records, &mut buf) {
             Ok(buf) => buf,
             Err(e) => {
@@ -99,6 +108,7 @@ pub fn serve_udp(
         if out.is_empty() {
             unreachable!();
         }
+        response_bytes_rate_limiter.record(u32::try_from(out.len()).unwrap());
         let sent_len = sock
             .send_to(out.readable(), &addr)
             .map_err(|e| format!("error sending response to {:?}: {}", addr, e))?;

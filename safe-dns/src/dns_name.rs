@@ -200,8 +200,7 @@ fn test_new_label_separators() {
 #[cfg(test)]
 #[test]
 fn test_new_label_charset() {
-    const ALLOWED: &'static str =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.";
+    const ALLOWED: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.";
     for c in ALLOWED.chars() {
         let value = format!("a{}a", c);
         DnsName::new(&value).expect(&value);

@@ -119,14 +119,14 @@ impl DnsMessageHeader {
         let bytes: [u8; 2] = self.id.to_be_bytes();
         out.write_bytes(&bytes)
             .map_err(|_| DnsError::ResponseBufferFull)?;
-        let b = ((self.is_response as u8) << 7)
+        let b = (u8::from(self.is_response) << 7)
             | (self.op_code.num() << 3)
-            | ((self.authoritative_answer as u8) << 2)
-            | ((self.truncated as u8) << 1)
-            | (self.recursion_desired as u8);
+            | (u8::from(self.authoritative_answer) << 2)
+            | (u8::from(self.truncated) << 1)
+            | u8::from(self.recursion_desired);
         out.write_bytes(&[b])
             .map_err(|_| DnsError::ResponseBufferFull)?;
-        let b = ((self.recursion_available as u8) << 7) | self.response_code.num();
+        let b = (u8::from(self.recursion_available) << 7) | self.response_code.num();
         out.write_bytes(&[b])
             .map_err(|_| DnsError::ResponseBufferFull)?;
         for count in [

@@ -14,5 +14,6 @@ version = "0.1.0"
 fixed-buffer = "^0.3.1"
 multimap = "^0.8.3"
 permit = "^0.1.4"
+prob-rate-limiter = { version = "^0.1.0", path = "../prob-rate-limiter" }
 
 [dev-dependencies]
