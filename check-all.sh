@@ -22,13 +22,13 @@ time cargo build --verbose
 time cargo fmt --all -- --check
 time cargo clippy --all-targets --all-features -- -D clippy::pedantic
 
+cd "$top_level_dir/"
+time cargo test --verbose
+
 for project in $projects ; do
   cd "$top_level_dir/$project/"
   "$top_level_dir/check-readme.sh"
 done
-
-cd "$top_level_dir/"
-time cargo test --verbose
 
 for project in $projects; do
   cd "$top_level_dir/$project/"
