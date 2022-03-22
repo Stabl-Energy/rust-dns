@@ -7,7 +7,9 @@ projects="any-range \
   prob-rate-limiter \
   rustls-pin \
   safe-dns \
-  safe-lock"
+  safe-lock \
+  temp-dir \
+  temp-file"
 top_level_dir=$(
   cd "$(dirname $0)"
   pwd
