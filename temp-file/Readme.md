@@ -68,14 +68,14 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.6
+0/0        0/0          0/0    0/0     0/0      🔒  temp-file 0.1.7
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 # Changelog
+- v0.1.7 - Add `in_dir`, `with_suffix`, and `TempFileBuilder`.
 - v0.1.6
-- v0.1.7 - Add `new_in_dir`, `with_suffix`, and `TempFileBuilder`.
   - Return `std::io::Error` instead of `String`.
   - Add
     [`cleanup`](https://docs.rs/temp-file/latest/temp_file/struct.TempFile.html#method.cleanup).
