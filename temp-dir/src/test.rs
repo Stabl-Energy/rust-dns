@@ -4,6 +4,8 @@ use safe_lock::SafeLock;
 use std::io::ErrorKind;
 use std::path::Path;
 
+// TODO: Move this file to tests/ dir.
+
 // The error tests require all tests to run single-threaded.
 static LOCK: SafeLock = SafeLock::new();
 
