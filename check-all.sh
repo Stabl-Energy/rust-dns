@@ -15,15 +15,15 @@ top_level_dir=$(pwd)
 set -e
 set -x
 
-time cargo check --verbose
-time cargo build --verbose
+time cargo check --all-targets --all-features
+time cargo build --all-targets --all-features
 time cargo fmt --all -- --check
 time cargo clippy --all-targets --all-features -- -D clippy::pedantic
-time cargo test --verbose
+time cargo test --all-targets --all-features
 
 for project in $projects ; do
   cd "$top_level_dir/$project/"
-  ../check-readme.sh
+  "$top_level_dir/check-readme.sh"
 done
 
 for project in $projects; do
