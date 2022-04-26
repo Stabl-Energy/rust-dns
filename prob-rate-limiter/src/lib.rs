@@ -71,7 +71,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.1 - Simplify `new`.  Add more docs.
 //! - v0.1.0 - Initial version
