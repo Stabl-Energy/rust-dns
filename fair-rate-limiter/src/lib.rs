@@ -48,7 +48,7 @@
 //!   - Unsuitable for load shedding.
 //!
 //! # Related Crates
-//! - [safe-dns](https://crates.io/crates/safe-dns) uses this
+//! - [dns-server](https://crates.io/crates/dns-server) uses this
 //!
 //! # Example
 //! ```

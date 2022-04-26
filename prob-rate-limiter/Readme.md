@@ -45,7 +45,7 @@ It adjusts the probability of rejection so throughput is steady around the limit
   - Unsuitable for load shedding because there is no `try_acquire`.
 
 # Related Crates
-- [safe-dns](https://crates.io/crates/safe-dns) uses this
+- [dns-server](https://crates.io/crates/dns-server) uses this
 
 # Example
 ```rust

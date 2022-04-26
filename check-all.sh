@@ -2,11 +2,11 @@
 projects="any-range \
   build-data \
   build-data-test \
+  dns-server \
   fair-rate-limiter \
   permit \
   prob-rate-limiter \
   rustls-pin \
-  safe-dns \
   safe-lock \
   temp-dir \
   temp-file"

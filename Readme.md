@@ -1,5 +1,5 @@
 # Ops Tools
-- [safe-dns/](safe-dns/) - A threaded DNS server with no `unsafe`.
+- [dns-server/](dns-server/) - A threaded DNS server with no `unsafe`.
 
 # Supporting Crates
 - [any-range/](any-range/) - `AnyRange<T>` enum can hold any `Range*<T>` type

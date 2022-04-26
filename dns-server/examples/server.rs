@@ -1,4 +1,4 @@
-// $ cargo run --package safe-dns --example server
+// $ cargo run --package dns-server --example server
 
 use permit::Permit;
 use prob_rate_limiter::ProbRateLimiter;
