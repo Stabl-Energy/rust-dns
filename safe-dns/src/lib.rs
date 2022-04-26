@@ -23,7 +23,6 @@
 //! ## Example
 //!
 //! ## Cargo Geiger Safety Report
-//!
 //! ## Changelog
 //! - v0.1.0 - Initial version
 #![forbid(unsafe_code)]

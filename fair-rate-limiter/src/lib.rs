@@ -74,7 +74,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.0 - Initial version
 //!
@@ -360,7 +359,7 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
         match self.keys.entry(key) {
             Entry::Occupied(entry) => {
                 // The key was found.
-                // Decide whether ot reject or accept he request.
+                // Decide whether to reject or accept the request.
                 let index = *entry.get();
                 let source = self.sources[index].as_mut().unwrap();
                 source.costs.update(self.tick_duration, now);

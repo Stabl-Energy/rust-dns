@@ -55,7 +55,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.7 - Add `in_dir`, `with_suffix`, and `TempFileBuilder`.
 //! - v0.1.6

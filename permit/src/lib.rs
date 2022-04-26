@@ -72,7 +72,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
 //!   where `revoke()` and then `wait()` would not wait.
