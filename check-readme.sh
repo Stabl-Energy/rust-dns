@@ -5,10 +5,12 @@ top_level_dir=$(
 )
 set -e
 set -x
-"$top_level_dir/update-readme.sh" --filename Readme.md.tmp
-diff Readme.md Readme.md.tmp || (
+cat Readme.md |perl -0777 -pe 's/(# Cargo Geiger Safety Report).+?```.+?```/$1/s' >Readme.md.pruned
+cargo readme --no-title --no-indent-headings >Readme.md.tmp
+diff Readme.md.pruned Readme.md.tmp || (
+  set +x
   echo "ERROR: Readme.md is stale" >&2
   exit 1
 )
-rm -f Readme.md.tmp
-git rm -f --ignore-unmatch Readme.md.tmp
+rm -f Readme.md.pruned Readme.md.tmp
+git rm -f --ignore-unmatch Readme.md.pruned Readme.md.tmp

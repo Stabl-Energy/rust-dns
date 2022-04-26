@@ -33,7 +33,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.3 - Implement `Hash`, `PartialOrd`, `Ord`
 //! - v0.1.2 - Increase test coverage

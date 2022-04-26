@@ -63,7 +63,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.11
 //!   - Return `std::io::Error` instead of `String`.

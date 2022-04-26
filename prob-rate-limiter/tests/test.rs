@@ -75,25 +75,43 @@ fn test_new_custom() {
 }
 
 #[test]
-fn test_new() {
+fn test_new_0() {
     let now = Instant::now();
-    ProbRateLimiter::new(f32::NEG_INFINITY).unwrap_err();
-    ProbRateLimiter::new(-1.0).unwrap_err();
-    ProbRateLimiter::new(-0.0).unwrap_err();
-    ProbRateLimiter::new(0.1).unwrap_err();
-    ProbRateLimiter::new(f32::INFINITY).unwrap_err();
-    ProbRateLimiter::new(f32::NAN).unwrap_err();
-    let mut limiter = ProbRateLimiter::new(100.0).unwrap();
-    assert!(limiter.check(100, now));
-    assert!(limiter.check(100, now));
+    let mut limiter = ProbRateLimiter::new(0);
     assert!(!limiter.check(1, now));
     assert!(!limiter.check(1, now));
 }
 
 #[test]
-fn test_zero() {
-    let now = Instant::now();
-    let mut limiter = ProbRateLimiter::new(0.0).unwrap();
+fn test_new_1() {
+    let mut now = Instant::now();
+    let mut limiter = ProbRateLimiter::new(1);
+    assert!(limiter.check(1, now));
+    assert!(limiter.check(1, now));
+    assert!(!limiter.check(1, now));
+    assert!(!limiter.check(1, now));
+    now += Duration::from_secs(1);
+    assert!(!limiter.check(1, now));
+    now += Duration::from_secs(1);
+    assert!(limiter.check(1, now));
+    assert!(!limiter.check(1, now));
+    assert!(!limiter.check(1, now));
+}
+
+#[test]
+fn test_new_100() {
+    let mut now = Instant::now();
+    let mut limiter = ProbRateLimiter::new(100);
+    assert!(limiter.check(100, now));
+    assert!(limiter.check(100, now));
+    assert!(!limiter.check(1, now));
+    assert!(!limiter.check(1, now));
+    now += Duration::from_secs(1);
+    assert!(!limiter.check(1, now));
+    now += Duration::from_secs(1);
+    assert!(limiter.check(1, now));
+    assert!(limiter.check(1, now));
+    assert!(limiter.check(100, now));
     assert!(!limiter.check(1, now));
     assert!(!limiter.check(1, now));
 }
@@ -111,7 +129,7 @@ fn test_debug() {
 
 #[test]
 fn test_clone() {
-    let mut limiter = ProbRateLimiter::new(1.0).unwrap();
+    let mut limiter = ProbRateLimiter::new(1);
     let mut clone = limiter.clone();
     assert_eq!(format!("{:?}", limiter), format!("{:?}", clone));
     let now = Instant::now();

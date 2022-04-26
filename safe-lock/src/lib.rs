@@ -83,7 +83,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.3 - Increase test coverage
 //! - v0.1.2 - Use `Acquire` and `Release` ordering

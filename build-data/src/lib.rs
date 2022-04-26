@@ -90,7 +90,6 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.3 - Update docs.
 //! - v0.1.2 - Rewrote based on

@@ -74,12 +74,10 @@
 //! ```
 //!
 //! # Cargo Geiger Safety Report
-//!
 //! # Changelog
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO
-//! - Rename to `fair-rate-limiter`
 //! - Compare performance with `governor`
 //! - Publish
 //! - Simulate bursty traffic
@@ -87,7 +85,6 @@
 //! - Replace hash table with skip list and see if performance improves
 //! - Support concurrent use
 //! - Allow tracked sources to use unused untracked throughput allocation
-//! - Adjust `tick_duration` to support `max_cost_per_sec` < 1.0
 #![forbid(unsafe_code)]
 
 use core::time::Duration;
@@ -360,7 +357,7 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
         match self.keys.entry(key) {
             Entry::Occupied(entry) => {
                 // The key was found.
-                // Decide whether ot reject or accept he request.
+                // Decide whether to reject or accept the request.
                 let index = *entry.get();
                 let source = self.sources[index].as_mut().unwrap();
                 source.costs.update(self.tick_duration, now);

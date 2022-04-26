@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("prob_rate_limiter", |b| {
         let clock = Instant::now();
-        let mut limiter = ProbRateLimiter::new(500.0).unwrap();
+        let mut limiter = ProbRateLimiter::new(500);
         b.iter(|| {
             limiter.check(black_box(1), clock);
         });

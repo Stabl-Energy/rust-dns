@@ -49,7 +49,7 @@ It adjusts the probability of rejection so throughput is steady around the limit
 
 # Example
 ```rust
-let mut limiter = ProbRateLimiter::new(10.0).unwrap();
+let mut limiter = ProbRateLimiter::new(10);
 let mut now = Instant::now();
 assert!(limiter.check(5, now));
 assert!(limiter.check(5, now));
@@ -82,13 +82,14 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  prob-rate-limiter 0.1.0
+0/0        0/0          0/0    0/0     0/0      🔒  prob-rate-limiter 0.1.1
 0/0        0/0          0/0    0/0     0/0      🔒  └── oorandom 11.1.3
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 # Changelog
+- v0.1.1 - Simplify `new`.  Add more docs.
 - v0.1.0 - Initial version
 
 # TO DO
