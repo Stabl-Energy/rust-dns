@@ -166,32 +166,20 @@ impl ProbRateLimiter {
         })
     }
 
-    /// # Errors
-    /// Returns an error when `max_cost_per_sec` is less than 1.0 or not finite.
-    pub fn new(max_cost_per_sec: f32) -> Result<Self, String> {
-        if !max_cost_per_sec.is_finite() || !max_cost_per_sec.is_sign_positive() {
-            return Err(format!(
-                "max_cost_per_sec is negative or not finite: {:?}",
-                max_cost_per_sec
-            ));
-        }
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let max_cost_per_tick = max_cost_per_sec as u32;
-        // TODO: Multiply all costs to support costs under 1.0 and to increase memory.
-        if max_cost_per_sec != 0.0 && max_cost_per_tick == 0 {
-            return Err(format!(
-                "max_cost_per_sec too small: {:?}",
-                max_cost_per_sec
-            ));
-        }
+    /// Makes a new rate limiter that accepts `max_cost_per_sec` cost every second.
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn new(max_cost_per_sec: u32) -> Self {
         Self::new_custom(
             Duration::from_secs(1),
-            max_cost_per_tick,
+            max_cost_per_sec,
             Instant::now(),
             Rand32::new(0),
         )
+        .unwrap()
     }
 
+    /// Try a request.  Returns `true` when the request should be accepted.
     pub fn attempt(&mut self, now: Instant) -> bool {
         if self.max_cost == 0 {
             return false;
@@ -204,10 +192,13 @@ impl ProbRateLimiter {
         decide(self.cost, self.max_cost, || self.prng.rand_float())
     }
 
+    /// Record the cost of a request.
     pub fn record(&mut self, cost: u32) {
         self.cost.saturating_add_assign(cost);
     }
 
+    /// A convenience method that calls [`attempt`] and [`record`].
+    /// Use this when the cost of each request is fixed or cheap to calculate.
     pub fn check(&mut self, cost: u32, now: Instant) -> bool {
         if self.attempt(now) {
             self.record(cost);
