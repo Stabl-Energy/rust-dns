@@ -23,6 +23,7 @@ A threaded DNS server library.
 - ?% test coverage
 
 # Limitations
+- Brand new.
 
 # Example
 
@@ -66,7 +67,6 @@ Functions  Expressions  Impls  Traits  Methods  Dependency
 - v0.1.0 - Initial version
 
 # To Do
-- `DoS` mitigation
 - Message compression
 - Decide whether to send back error responses.
 - Ergonomic constructors that take `OsStr`, for using environment variables
