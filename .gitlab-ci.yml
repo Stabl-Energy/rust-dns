@@ -25,6 +25,7 @@ rust-stable:
     - cargo readme --version || cargo install cargo-readme && cargo readme --version
     - cargo fmt --version || rustup component add rustfmt && cargo fmt --version
     - cargo clippy --version || rustup component add clippy && cargo clippy --version
+    - dig -version || apt install dnsutils && dig -version
     - git --version
     - ./check-all.sh
     - du -sh "$CARGO_HOME"/ "$CARGO_TARGET_DIR"/ || true
