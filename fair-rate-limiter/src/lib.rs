@@ -78,7 +78,6 @@
 //! - v0.1.0 - Initial version
 //!
 //! # TO DO
-//! - Rename to `fair-rate-limiter`
 //! - Compare performance with `governor`
 //! - Publish
 //! - Simulate bursty traffic
@@ -86,7 +85,6 @@
 //! - Replace hash table with skip list and see if performance improves
 //! - Support concurrent use
 //! - Allow tracked sources to use unused untracked throughput allocation
-//! - Adjust `tick_duration` to support `max_cost_per_sec` < 1.0
 #![forbid(unsafe_code)]
 
 use core::time::Duration;
