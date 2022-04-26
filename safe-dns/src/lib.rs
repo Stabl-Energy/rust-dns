@@ -1,179 +1,170 @@
+//! safe-dns
+//! ========
 //! [![crates.io version](https://img.shields.io/crates/v/safe-dns.svg)](https://crates.io/crates/safe-dns)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/safe-dns/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
 //! [![pipeline status](https://gitlab.com/leonhard-llc/ops/badges/main/pipeline.svg)](https://gitlab.com/leonhard-llc/ops/-/pipelines)
 //!
-//! # safe-dns
-//!
 //! A threaded DNS server library.
 //!
-//! ## Use Cases
+//! # Use Cases
+//! - Make your API server its own DNS server.
+//!   This eliminates the DNS server as a separate point of failure.
+//! - Keep your DNS config in code, next to your server code.
+//!   Include it in code reviews and integration tests.
+//! - DNS-based
+//!   [domain validation for free ACME certificates](https://letsencrypt.org/how-it-works/).
+//!   This is useful for servers that don't listen on port 80.
+//!   Servers on port 80 can use HTTP for domain validation and don't need to use this.
 //!
-//! ## Features
+//! # Features
 //! - Depends only on `std`
 //! - `forbid(unsafe_code)`
 //! - ?% test coverage
 //!
-//! ## Limitations
+//! # Limitations
+//! - Brand new.
 //!
-//! ## Alternatives
+//! # Example
+//! ```
+//! use permit::Permit;
+//! use prob_rate_limiter::ProbRateLimiter;
+//! use safe_dns::DnsRecord;
+//! use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 //!
-//! ## Related Crates
+//! let permit = Permit::new();
+//! # let top_permit = Permit::new();
+//! # let permit = top_permit.new_sub();
+//! let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
+//! let addr = sock.local_addr().unwrap();
+//! let response_bytes_rate_limiter = ProbRateLimiter::new(100_000);
+//! let records = vec![
+//!     DnsRecord::new_a("aaa.example.com", "93.184.216.34").unwrap(),
+//!     DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
+//!     DnsRecord::new_cname("bbb.example.com", "target.foo.com").unwrap(),
+//! ];
+//! # std::thread::spawn(move || {
+//! #     std::thread::sleep(std::time::Duration::from_millis(100));
+//! #     drop(top_permit);
+//! # });
+//! safe_dns::serve_udp(
+//!     &permit,
+//!     &sock,
+//!     response_bytes_rate_limiter,
+//!     &records,
+//! )
+//! .unwrap();
+//! ```
 //!
-//! ## Example
+//! # Related Crates
 //!
-//! ## Cargo Geiger Safety Report
-//! ## Changelog
+//! # Cargo Geiger Safety Report
+//! # Changelog
 //! - v0.1.0 - Initial version
+//!
+//! # To Do
+//! - Message compression
+//! - Decide whether to send back error responses.
+//! - Ergonomic constructors that take `OsStr`, for using environment variables
+//! - Custom TTLs
+//! - NS records (and glue)
+//! - Client
+//! - Caching client
+//! - Recursive resolver
+//!
+//! # Alternatives
+//!
 #![forbid(unsafe_code)]
 
-use core::fmt::Display;
-use std::fmt::Formatter;
+mod dns_class;
+mod dns_message;
+mod dns_message_header;
+mod dns_name;
+mod dns_op_code;
+mod dns_question;
+mod dns_record;
+mod dns_response_code;
+mod dns_server;
+mod dns_type;
 
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DnsName(String);
-impl DnsName {
-    fn err(value: impl AsRef<str>) -> Result<Self, String> {
-        Err(format!("not a valid DNS name: {:?}", value.as_ref()))
-    }
+pub use dns_class::DnsClass;
+pub use dns_message::DnsMessage;
+pub use dns_message_header::DnsMessageHeader;
+pub use dns_name::DnsName;
+pub use dns_op_code::DnsOpCode;
+pub use dns_question::DnsQuestion;
+pub use dns_record::DnsRecord;
+pub use dns_response_code::DnsResponseCode;
+pub use dns_server::{process_datagram, serve_udp};
+pub use dns_type::DnsType;
 
-    fn is_letter(b: u8) -> bool {
-        (b'a'..=b'z').contains(&b) || (b'A'..=b'Z').contains(&b)
-    }
+use fixed_buffer::FixedBuf;
 
-    fn is_letter_digit(b: u8) -> bool {
-        Self::is_letter(b) || (b'0'..=b'9').contains(&b)
-    }
-
-    fn is_letter_digit_hyphen(b: u8) -> bool {
-        Self::is_letter_digit(b) || b == b'-'
-    }
-
-    fn is_valid_label(label: &str) -> bool {
-        if label.is_empty() || label.len() > 63 {
-            return false;
-        }
-        let bytes = label.as_bytes();
-        Self::is_letter(bytes[0])
-            && bytes.iter().copied().all(Self::is_letter_digit_hyphen)
-            && Self::is_letter_digit(*bytes.last().unwrap())
-    }
-
-    fn is_valid_name(value: &str) -> bool {
-        if !value.is_ascii() {
-            return false;
-        }
-        value.split('.').all(Self::is_valid_label)
-    }
-
-    /// # Errors
-    /// Returns an error when `value` is not a valid DNS name.
-    pub fn new(value: impl AsRef<str>) -> Result<Self, String> {
-        // Name syntax: https://datatracker.ietf.org/doc/html/rfc1035#page-8
-        let mut trimmed = value.as_ref();
-        trimmed = trimmed.strip_suffix('.').unwrap_or(trimmed);
-        if !Self::is_valid_name(trimmed) {
-            return Self::err(value);
-        }
-        Ok(Self(trimmed.to_ascii_lowercase()))
-    }
-
-    #[must_use]
-    pub fn inner(&self) -> &str {
-        &self.0
-    }
-}
-impl Display for DnsName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-        write!(f, "{}", self.0)
-    }
+fn read_exact<const N: usize, const M: usize>(buf: &mut FixedBuf<N>) -> Result<[u8; M], DnsError> {
+    let mut result = [0_u8; M];
+    buf.try_read_exact(&mut result).ok_or(DnsError::Truncated)?;
+    Ok(result)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn read_u8<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u8, DnsError> {
+    buf.try_read_byte().ok_or(DnsError::Truncated)
+}
 
-    #[test]
-    fn test_dns_name_separators() {
-        // Separators.
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".\"".to_string()),
-            DnsName::new(".")
-        );
-        assert_eq!("a", DnsName::new("a.").unwrap().inner());
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a..\"".to_string()),
-            DnsName::new("a..")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".a\"".to_string()),
-            DnsName::new(".a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"b..a\"".to_string()),
-            DnsName::new("b..a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \".b.a\"".to_string()),
-            DnsName::new(".b.a")
-        );
-        // Labels.
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"\"".to_string()),
-            DnsName::new("")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a\u{263A}\"".to_string()),
-            DnsName::new("a\u{263A}")
-        );
-        assert_eq!("a", DnsName::new("a").unwrap().inner());
-        assert_eq!("b", DnsName::new("b").unwrap().inner());
-        assert_eq!("z", DnsName::new("z").unwrap().inner());
-        assert_eq!("abc", DnsName::new("ABC").unwrap().inner());
-        assert_eq!("b", DnsName::new("B").unwrap().inner());
-        assert_eq!("z", DnsName::new("Z").unwrap().inner());
-        assert_eq!(
-            "abcdefghijklmnopqrstuvwxyz",
-            DnsName::new("abcdefghijklmnopqrstuvwxyz").unwrap().inner()
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"1\"".to_string()),
-            DnsName::new("1")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"1a\"".to_string()),
-            DnsName::new("1a")
-        );
-        assert_eq!("a0", DnsName::new("a0").unwrap().inner());
-        assert_eq!("a1", DnsName::new("a1").unwrap().inner());
-        assert_eq!("a9", DnsName::new("a9").unwrap().inner());
-        assert_eq!("a9876543210", DnsName::new("a9876543210").unwrap().inner());
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"-\"".to_string()),
-            DnsName::new("-")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a-\"".to_string()),
-            DnsName::new("a-")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"-a\"".to_string()),
-            DnsName::new("-a")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a-.b\"".to_string()),
-            DnsName::new("a-.b")
-        );
-        assert_eq!(
-            <Result<DnsName, String>>::Err("not a valid DNS name: \"a.-b\"".to_string()),
-            DnsName::new("a.-b")
-        );
-        assert_eq!("a-b", DnsName::new("a-b").unwrap().inner());
-        assert_eq!("a-0", DnsName::new("a-0").unwrap().inner());
-        assert_eq!("a---b", DnsName::new("a---b").unwrap().inner());
-        assert_eq!(
-            "xyz321-654abc",
-            DnsName::new("Xyz321-654abC").unwrap().inner()
-        );
-    }
+// fn write_u8<const N: usize>(out: &mut FixedBuf<N>, value: u8) -> Result<(), DnsError> {
+//     out.write_bytes(&[value])
+//         .map_err(|_| DnsError::ResponseBufferFull)?;
+//     Ok(())
+// }
+
+fn read_u16_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u16, DnsError> {
+    let bytes: [u8; 2] = read_exact(buf)?;
+    Ok(u16::from_be_bytes([bytes[0], bytes[1]]))
+}
+
+fn read_u32_be<const N: usize>(buf: &mut FixedBuf<N>) -> Result<u32, DnsError> {
+    let bytes: [u8; 4] = read_exact(buf)?;
+    Ok(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+fn write_bytes<const N: usize>(out: &mut FixedBuf<N>, bytes: &[u8]) -> Result<(), DnsError> {
+    out.write_bytes(bytes)
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
+fn write_u16_be<const N: usize>(out: &mut FixedBuf<N>, value: u16) -> Result<(), DnsError> {
+    let bytes: [u8; 2] = value.to_be_bytes();
+    out.write_bytes(&bytes)
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
+fn write_u32_be<const N: usize>(out: &mut FixedBuf<N>, value: u32) -> Result<(), DnsError> {
+    let bytes: [u8; 4] = value.to_be_bytes();
+    out.write_bytes(&bytes)
+        .map_err(|_| DnsError::ResponseBufferFull)?;
+    Ok(())
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum DnsError {
+    InvalidClass,
+    InvalidLabel,
+    InvalidOpCode,
+    NameTooLong,
+    NoQuestion,
+    NotARequest,
+    NotFound,
+    ResponseBufferFull,
+    QueryHasAdditionalRecords,
+    QueryHasAnswer,
+    QueryHasNameServer,
+    TooManyAdditional,
+    TooManyAnswers,
+    TooManyLabels,
+    TooManyNameServers,
+    TooManyQuestions,
+    Truncated,
+    Internal(String),
+    Unreachable(&'static str, u32),
 }
