@@ -26,6 +26,35 @@
 //! - Brand new.
 //!
 //! # Example
+//! ```
+//! use permit::Permit;
+//! use prob_rate_limiter::ProbRateLimiter;
+//! use safe_dns::DnsRecord;
+//! use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
+//!
+//! let permit = Permit::new();
+//! # let top_permit = Permit::new();
+//! # let permit = top_permit.new_sub();
+//! let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
+//! let addr = sock.local_addr().unwrap();
+//! let response_bytes_rate_limiter = ProbRateLimiter::new(100_000);
+//! let records = vec![
+//!     DnsRecord::new_a("aaa.example.com", "93.184.216.34").unwrap(),
+//!     DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
+//!     DnsRecord::new_cname("bbb.example.com", "target.foo.com").unwrap(),
+//! ];
+//! # std::thread::spawn(move || {
+//! #     std::thread::sleep(std::time::Duration::from_millis(100));
+//! #     drop(top_permit);
+//! # });
+//! safe_dns::serve_udp(
+//!     &permit,
+//!     &sock,
+//!     response_bytes_rate_limiter,
+//!     &records,
+//! )
+//! .unwrap();
+//! ```
 //!
 //! # Related Crates
 //!
