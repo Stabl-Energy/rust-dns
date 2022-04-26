@@ -10,8 +10,7 @@
 //! # Features
 //! - Makes a file in a system temporary directory
 //! - Deletes the file on drop
-//! - Optional file name prefix
-//! - Optional file contents
+//! - Optional name prefix, name suffix, contents, and directory.
 //! - Depends only on `std`
 //! - `forbid(unsafe_code)`
 //! - 100% test coverage
@@ -20,6 +19,7 @@
 //! - Not security-hardened. See
 //!   [Secure Programming for Linux and Unix HOWTO - 7.10. Avoid Race Conditions](https://tldp.org/HOWTO/Secure-Programs-HOWTO/avoid-race.html)
 //!   and [`mkstemp`](https://linux.die.net/man/3/mkstemp).
+//! - Not tested on [Windows](https://gitlab.com/leonhard-llc/ops/-/issues/6).
 //!
 //! # Alternatives
 //! - [`tempfile`](https://crates.io/crates/tempfile)

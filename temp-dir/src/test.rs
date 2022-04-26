@@ -4,25 +4,23 @@ use safe_lock::SafeLock;
 use std::io::ErrorKind;
 use std::path::Path;
 
+// TODO: Move this file to tests/ dir.
+
 // The error tests require all tests to run single-threaded.
 static LOCK: SafeLock = SafeLock::new();
 
 fn make_non_writable(path: &Path) {
-    assert!(std::process::Command::new("chmod")
-        .arg("-w")
-        .arg(path)
-        .status()
-        .unwrap()
-        .success());
+    let metadata = std::fs::metadata(path).unwrap();
+    let mut permissions = metadata.permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(path, permissions).unwrap();
 }
 
 fn make_writable(path: &Path) {
-    assert!(std::process::Command::new("chmod")
-        .arg("u+w")
-        .arg(path)
-        .status()
-        .unwrap()
-        .success());
+    let metadata = std::fs::metadata(path).unwrap();
+    let mut permissions = metadata.permissions();
+    permissions.set_readonly(false);
+    std::fs::set_permissions(path, permissions).unwrap();
 }
 
 fn should_skip_cleanup_test() -> bool {

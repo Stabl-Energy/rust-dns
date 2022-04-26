@@ -13,7 +13,7 @@ version = "0.1.4"
 [dependencies]
 
 [dev-dependencies]
-safina = "^0.1.9"
-safina-async-test = "^0.1.9"
+safina = "0.3"
+safina-async-test = "0.1"
 #safina = { path = "../../safina-rs/safina", version = "^0.1.9" }
 #safina-async-test = { path = "../../safina-rs/safina-async-test", version = "^0.1.9" }

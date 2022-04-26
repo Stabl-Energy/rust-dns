@@ -290,17 +290,17 @@ fn await_revoked_returns_immediately() {
     let before = Instant::now();
     let permit = permit::Permit::new();
     permit.revoke();
-    safina::block_on(async move { permit.await });
+    safina::executor::block_on(async move { permit.await });
     expect_elapsed(before, 0..10).unwrap();
 }
 
 #[test]
 fn await_timeout() {
-    safina::start_timer_thread();
+    safina::timer::start_timer_thread();
     let permit = permit::Permit::new();
     let sub = permit.new_sub();
-    safina::block_on(async move {
-        safina::with_timeout(sub, Duration::from_millis(50))
+    safina::executor::block_on(async move {
+        safina::timer::with_timeout(sub, Duration::from_millis(50))
             .await
             .unwrap_err()
     });
@@ -315,7 +315,7 @@ fn await_returns_when_revoked() {
         std::thread::sleep(core::time::Duration::from_millis(50));
         drop(permit);
     });
-    safina::block_on(async move { sub.await });
+    safina::executor::block_on(async move { sub.await });
     expect_elapsed(before, 50..100).unwrap();
 }
 
@@ -323,20 +323,20 @@ fn await_returns_when_revoked() {
 async fn await_many() {
     let before = Instant::now();
     let top_permit = permit::Permit::new();
-    let mut promises = Vec::new();
+    let mut receivers = Vec::new();
     for _ in 0..100_000 {
         let permit = top_permit.new_sub();
-        let promise = safina::Promise::new();
-        promises.push(promise.clone());
-        safina::spawn(async move {
+        let (sender, receiver) = safina::sync::oneshot();
+        receivers.push(receiver);
+        safina::executor::spawn(async move {
             permit.await;
-            promise.set(());
+            sender.send(()).unwrap();
         });
     }
-    safina::sleep_for(Duration::from_millis(50)).await;
+    safina::timer::sleep_for(Duration::from_millis(50)).await;
     top_permit.revoke();
-    for promise in promises {
-        promise.await;
+    for mut receiver in receivers {
+        receiver.async_recv().await.unwrap();
     }
     expect_elapsed(before, 0..10_000).unwrap();
 }
@@ -346,18 +346,13 @@ async fn await_loop() {
     let before = Instant::now();
     let top_permit = permit::Permit::new();
     let permit = top_permit.new_sub();
-    for _ in 0..7 {
+    for _ in 0..5 {
         let sub = permit.new_sub();
-        println!("loop.await");
-        safina::with_timeout(sub, Duration::from_micros(1))
+        safina::timer::with_timeout(sub, Duration::from_millis(1))
             .await
             .unwrap_err();
-        println!("loop.done");
     }
-    expect_elapsed(before, 0..10_000).unwrap();
-    println!("dropping permit");
+    expect_elapsed(before, 0..500).unwrap();
     drop(permit);
-    println!("dropping top_permit");
     drop(top_permit);
-    println!("await_loop done");
 }
