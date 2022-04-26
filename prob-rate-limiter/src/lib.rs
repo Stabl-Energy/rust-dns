@@ -51,7 +51,7 @@
 //! ```
 //! # use prob_rate_limiter::ProbRateLimiter;
 //! # use std::time::{Duration, Instant};
-//! let mut limiter = ProbRateLimiter::new(10.0).unwrap();
+//! let mut limiter = ProbRateLimiter::new(10);
 //! let mut now = Instant::now();
 //! assert!(limiter.check(5, now));
 //! assert!(limiter.check(5, now));

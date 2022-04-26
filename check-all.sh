@@ -20,6 +20,7 @@ time cargo build --all-targets --all-features
 time cargo fmt --all -- --check
 time cargo clippy --all-targets --all-features -- -D clippy::pedantic
 time cargo test --all-targets --all-features
+time cargo test --doc
 
 for project in $projects ; do
   cd "$top_level_dir/$project/"

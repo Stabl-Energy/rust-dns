@@ -49,7 +49,7 @@ It adjusts the probability of rejection so throughput is steady around the limit
 
 # Example
 ```rust
-let mut limiter = ProbRateLimiter::new(10.0).unwrap();
+let mut limiter = ProbRateLimiter::new(10);
 let mut now = Instant::now();
 assert!(limiter.check(5, now));
 assert!(limiter.check(5, now));
