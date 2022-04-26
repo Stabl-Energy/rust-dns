@@ -1,5 +1,6 @@
 use fixed_buffer::FixedBuf;
-use safe_dns::{process_datagram, DnsRecord};
+use multimap::MultiMap;
+use safe_dns::{process_datagram, DnsName, DnsRecord};
 
 #[test]
 fn test_process_datagram() {
@@ -19,6 +20,8 @@ fn test_process_datagram() {
         0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x2C, 0x00, 0x04, 10, 0, 0, 1_u8,
     ];
     let records = [DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap()];
-    let response = process_datagram(&make_name_to_records(&records), &mut buf).unwrap();
+    let name_to_records: MultiMap<&DnsName, &DnsRecord> =
+        records.iter().map(|x| (x.name(), x)).collect();
+    let response = process_datagram(&name_to_records, &mut buf).unwrap();
     assert_eq!(expected_response, response.readable());
 }

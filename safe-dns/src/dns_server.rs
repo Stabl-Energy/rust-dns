@@ -56,10 +56,6 @@ pub fn process_datagram(
     Ok(out)
 }
 
-pub fn make_name_to_records(records: &[DnsRecord]) -> MultiMap<&DnsName, &DnsRecord> {
-    records.iter().map(|x| (x.name(), x)).collect()
-}
-
 /// # Errors
 /// Returns `Err` when socket operations fail.
 #[allow(clippy::missing_panics_doc)]
@@ -74,7 +70,8 @@ pub fn serve_udp(
     let local_addr = sock
         .local_addr()
         .map_err(|e| format!("error getting socket local address: {}", e))?;
-    let name_to_records = make_name_to_records(records);
+    let name_to_records: MultiMap<&DnsName, &DnsRecord> =
+        records.iter().map(|x| (x.name(), x)).collect();
     while !permit.is_revoked() {
         // > Messages carried by UDP are restricted to 512 bytes (not counting the IP
         // > or UDP headers).  Longer messages are truncated and the TC bit is set in
