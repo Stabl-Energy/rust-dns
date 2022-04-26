@@ -1,8 +1,8 @@
 // $ cargo run --package dns-server --example server
 
+use dns_server::DnsRecord;
 use permit::Permit;
 use prob_rate_limiter::ProbRateLimiter;
-use safe_dns::DnsRecord;
 use std::io::Read;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 
@@ -19,7 +19,7 @@ fn main() {
         DnsRecord::new_cname("bbb.example.com", "ccc.example.com").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {
-        safe_dns::serve_udp(
+        dns_server::serve_udp(
             &serve_udp_permit,
             &sock,
             response_bytes_rate_limiter,

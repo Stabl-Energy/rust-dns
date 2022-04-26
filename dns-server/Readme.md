@@ -29,7 +29,7 @@ A threaded DNS server library.
 ```rust
 use permit::Permit;
 use prob_rate_limiter::ProbRateLimiter;
-use safe_dns::DnsRecord;
+use dns_server::DnsRecord;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 
 let permit = Permit::new();
@@ -41,7 +41,7 @@ let records = vec![
     DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
     DnsRecord::new_cname("bbb.example.com", "target.foo.com").unwrap(),
 ];
-safe_dns::serve_udp(
+dns_server::serve_udp(
     &permit,
     &sock,
     response_bytes_rate_limiter,

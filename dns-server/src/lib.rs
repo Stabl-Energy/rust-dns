@@ -29,7 +29,7 @@
 //! ```
 //! use permit::Permit;
 //! use prob_rate_limiter::ProbRateLimiter;
-//! use safe_dns::DnsRecord;
+//! use dns_server::DnsRecord;
 //! use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 //!
 //! let permit = Permit::new();
@@ -47,7 +47,7 @@
 //! #     std::thread::sleep(std::time::Duration::from_millis(100));
 //! #     drop(top_permit);
 //! # });
-//! safe_dns::serve_udp(
+//! dns_server::serve_udp(
 //!     &permit,
 //!     &sock,
 //!     response_bytes_rate_limiter,
@@ -84,8 +84,8 @@ mod dns_op_code;
 mod dns_question;
 mod dns_record;
 mod dns_response_code;
-mod dns_server;
 mod dns_type;
+mod server;
 
 pub use dns_class::DnsClass;
 pub use dns_message::DnsMessage;
@@ -95,8 +95,8 @@ pub use dns_op_code::DnsOpCode;
 pub use dns_question::DnsQuestion;
 pub use dns_record::DnsRecord;
 pub use dns_response_code::DnsResponseCode;
-pub use dns_server::{process_datagram, serve_udp};
 pub use dns_type::DnsType;
+pub use server::{process_datagram, serve_udp};
 
 use fixed_buffer::FixedBuf;
 

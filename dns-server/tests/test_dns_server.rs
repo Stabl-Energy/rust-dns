@@ -1,6 +1,6 @@
+use dns_server::{process_datagram, DnsName, DnsRecord};
 use fixed_buffer::FixedBuf;
 use multimap::MultiMap;
-use safe_dns::{process_datagram, DnsName, DnsRecord};
 
 #[test]
 fn test_process_datagram() {

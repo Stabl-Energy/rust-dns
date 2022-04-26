@@ -1,6 +1,6 @@
+use dns_server::DnsRecord;
 use permit::Permit;
 use prob_rate_limiter::ProbRateLimiter;
-use safe_dns::DnsRecord;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::process::Command;
 use std::time::Duration;
@@ -20,7 +20,7 @@ fn example() {
         DnsRecord::new_cname("bbb.example.com", "ccc.example.com").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {
-        safe_dns::serve_udp(
+        dns_server::serve_udp(
             &serve_udp_permit,
             &sock,
             response_bytes_rate_limiter,
@@ -86,7 +86,7 @@ fn hard_coded() {
         DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
     ];
     let join_handle = std::thread::spawn(move || {
-        safe_dns::serve_udp(
+        dns_server::serve_udp(
             &serve_udp_permit,
             &server_sock,
             response_bytes_rate_limiter,
