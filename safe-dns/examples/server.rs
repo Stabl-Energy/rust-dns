@@ -12,7 +12,7 @@ fn main() {
     let sock = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0)).unwrap();
     let addr = sock.local_addr().unwrap();
     println!("Bound UDP socket {}", addr.port());
-    let response_bytes_rate_limiter = ProbRateLimiter::new(100_000.0).unwrap();
+    let response_bytes_rate_limiter = ProbRateLimiter::new(100_000);
     let records = vec![
         DnsRecord::new_a("aaa.example.com", "10.0.0.1").unwrap(),
         DnsRecord::new_aaaa("aaa.example.com", "2606:2800:220:1:248:1893:25c8:1946").unwrap(),
