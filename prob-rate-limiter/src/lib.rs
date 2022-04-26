@@ -198,7 +198,7 @@ impl ProbRateLimiter {
         self.cost.saturating_add_assign(cost);
     }
 
-    /// A convenience method that calls [`attempt`] and [`record`].
+    /// A convenience method that calls `attempt` and `record`.
     /// Use this when the cost of each request is fixed or cheap to calculate.
     pub fn check(&mut self, cost: u32, now: Instant) -> bool {
         if self.attempt(now) {
