@@ -1,5 +1,3 @@
-//! permit
-//! ======
 //! [![crates.io version](https://img.shields.io/crates/v/permit.svg)](https://crates.io/crates/permit)
 //! [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/permit/LICENSE)
 //! [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
@@ -52,6 +50,7 @@
 //!
 //! Graceful shutdown:
 //! ```
+//! # use core::time::Duration;
 //! # fn wait_for_shutdown_signal() { () }
 //! let top_permit = permit::Permit::new();
 //! // Start some worker threads.
@@ -60,19 +59,22 @@
 //!     std::thread::spawn(move || {
 //!         while !permit.is_revoked() {
 //!             // ...
-//! #           std::thread::sleep(core::time::Duration::from_millis(1));
+//! #           std::thread::sleep(Duration::from_millis(1));
 //!         }
 //!     });
 //! }
 //! wait_for_shutdown_signal();
 //! // Revoke all thread permits and wait for them to
 //! // finish and drop their permits.
-//! top_permit.revoke().try_wait_for(
-//!     core::time::Duration::from_secs(3));
+//! top_permit
+//!     .revoke()
+//!     .try_wait_for(Duration::from_secs(3))
+//!     .unwrap();
 //! ```
 //!
 //! # Cargo Geiger Safety Report
 //! # Changelog
+//! - v0.1.5 - Implement `Debug`
 //! - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
 //!   where `revoke()` and then `wait()` would not wait.
 //! - v0.1.3
@@ -83,15 +85,16 @@
 //! - v0.1.1 - Make `revoke` return `&Self`
 //! - v0.1.0 - Initial version
 #![forbid(unsafe_code)]
-use core::fmt::Debug;
+use core::fmt::{Debug, Formatter};
+use core::hash::{Hash, Hasher};
+use core::pin::Pin;
+use core::sync::atomic::AtomicBool;
+use core::task::{Context, Poll, Waker};
+use core::time::Duration;
 use std::collections::HashSet;
 use std::future::Future;
-use std::hash::{Hash, Hasher};
-use std::pin::Pin;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, Weak};
-use std::task::{Context, Poll, Waker};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 // This code was beautiful before implementing `Future`:
 // https://gitlab.com/leonhard-llc/ops/-/blob/26adc04aec12ac083fda358f176f0ef5130cda60/permit/src/lib.rs
@@ -243,7 +246,7 @@ impl Node {
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DeadlineExceeded;
 impl core::fmt::Display for DeadlineExceeded {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
         write!(f, "DeadlineExceeded")
     }
 }
@@ -274,8 +277,10 @@ impl std::error::Error for DeadlineExceeded {}
 /// wait_for_shutdown_signal();
 /// // Revoke all thread permits and wait for them to
 /// // finish and drop their permits.
-/// top_permit.revoke().try_wait_for(
-///     core::time::Duration::from_secs(3));
+/// top_permit
+///     .revoke()
+///     .try_wait_for(core::time::Duration::from_secs(3))
+///     .unwrap();
 /// ```
 pub struct Permit {
     node: Arc<Node>,
@@ -357,7 +362,7 @@ impl Permit {
     /// # Errors
     /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) if the subordinate permits
     /// are not all dropped before `duration` passes.
-    pub fn try_wait_for(&self, duration: core::time::Duration) -> Result<(), DeadlineExceeded> {
+    pub fn try_wait_for(&self, duration: Duration) -> Result<(), DeadlineExceeded> {
         self.try_wait_until(Instant::now() + duration)
     }
 
@@ -369,7 +374,7 @@ impl Permit {
     /// # Errors
     /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) if the subordinate permits
     /// are not all dropped before `deadline` passes.
-    pub fn try_wait_until(&self, deadline: std::time::Instant) -> Result<(), DeadlineExceeded> {
+    pub fn try_wait_until(&self, deadline: Instant) -> Result<(), DeadlineExceeded> {
         while Instant::now() < deadline {
             if !self.has_subs() {
                 return Ok(());
@@ -389,6 +394,16 @@ impl Clone for Permit {
         Self {
             node: self.node.new_clone(),
         }
+    }
+}
+impl Debug for Permit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(
+            f,
+            "Permit{{revoked={},num_subs={}}}",
+            self.is_revoked(),
+            Arc::weak_count(&self.node)
+        )
     }
 }
 impl Default for Permit {

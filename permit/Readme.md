@@ -1,5 +1,3 @@
-permit
-======
 [![crates.io version](https://img.shields.io/crates/v/permit.svg)](https://crates.io/crates/permit)
 [![license: Apache 2.0](https://gitlab.com/leonhard-llc/ops/-/raw/main/license-apache-2.0.svg)](https://gitlab.com/leonhard-llc/ops/-/raw/main/permit/LICENSE)
 [![unsafe forbidden](https://gitlab.com/leonhard-llc/ops/-/raw/main/unsafe-forbidden.svg)](https://github.com/rust-secure-code/safety-dance/)
@@ -65,8 +63,10 @@ for _ in 0..5 {
 wait_for_shutdown_signal();
 // Revoke all thread permits and wait for them to
 // finish and drop their permits.
-top_permit.revoke().try_wait_for(
-    core::time::Duration::from_secs(3));
+top_permit
+    .revoke()
+    .try_wait_for(Duration::from_secs(3))
+    .unwrap();
 ```
 
 # Cargo Geiger Safety Report
@@ -83,12 +83,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.4
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.5
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 # Changelog
+- v0.1.5 - Implement `Debug`
 - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
   where `revoke()` and then `wait()` would not wait.
 - v0.1.3

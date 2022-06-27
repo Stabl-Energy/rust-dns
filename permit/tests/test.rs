@@ -30,6 +30,19 @@ fn new() {
 }
 
 #[test]
+fn debug() {
+    let pmt = Permit::default();
+    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{:?}", &pmt));
+    let sub1 = pmt.new_sub();
+    let _sub2 = pmt.new_sub();
+    assert_eq!("Permit{revoked=false,num_subs=2}", &format!("{:?}", &pmt));
+    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{:?}", &sub1));
+    pmt.revoke();
+    assert_eq!("Permit{revoked=true,num_subs=2}", &format!("{:?}", &pmt));
+    assert_eq!("Permit{revoked=true,num_subs=0}", &format!("{:?}", &sub1));
+}
+
+#[test]
 fn default() {
     let pmt = Permit::default();
     assert!(!pmt.is_revoked());
@@ -160,7 +173,7 @@ fn sync_and_send() {
 #[test]
 fn has_subs() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     assert!(!top_permit.has_subs());
     let sub1 = top_permit.new_sub();
     assert!(top_permit.has_subs());
@@ -170,7 +183,7 @@ fn has_subs() {
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(50));
             drop(permit);
         });
     }
@@ -183,11 +196,11 @@ fn has_subs() {
 #[test]
 fn wait() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(50));
             drop(permit);
         });
     }
@@ -199,11 +212,11 @@ fn wait() {
 // https://gitlab.com/leonhard-llc/ops/-/issues/2
 fn revoke_then_wait() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(50));
             drop(permit);
         });
     }
@@ -215,11 +228,11 @@ fn revoke_then_wait() {
 #[test]
 fn try_wait_for() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(50));
             drop(permit);
         });
     }
@@ -230,11 +243,11 @@ fn try_wait_for() {
 #[test]
 fn try_wait_until() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(50));
+            std::thread::sleep(Duration::from_millis(50));
             drop(permit);
         });
     }
@@ -246,11 +259,11 @@ fn try_wait_until() {
 
 #[test]
 fn try_wait_for_deadline_exceeded() {
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(100));
             drop(permit);
         });
     }
@@ -264,11 +277,11 @@ fn try_wait_for_deadline_exceeded() {
 
 #[test]
 fn try_wait_until_deadline_exceeded() {
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     for _ in 0..2 {
         let permit = top_permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(core::time::Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(100));
             drop(permit);
         });
     }
@@ -288,7 +301,7 @@ fn deadline_exceeded() {
 #[test]
 fn await_revoked_returns_immediately() {
     let before = Instant::now();
-    let permit = permit::Permit::new();
+    let permit = Permit::new();
     permit.revoke();
     safina::executor::block_on(async move { permit.await });
     expect_elapsed(before, 0..10).unwrap();
@@ -297,7 +310,7 @@ fn await_revoked_returns_immediately() {
 #[test]
 fn await_timeout() {
     safina::timer::start_timer_thread();
-    let permit = permit::Permit::new();
+    let permit = Permit::new();
     let sub = permit.new_sub();
     safina::executor::block_on(async move {
         safina::timer::with_timeout(sub, Duration::from_millis(50))
@@ -309,10 +322,10 @@ fn await_timeout() {
 #[test]
 fn await_returns_when_revoked() {
     let before = Instant::now();
-    let permit = permit::Permit::new();
+    let permit = Permit::new();
     let sub = permit.new_sub();
     std::thread::spawn(move || {
-        std::thread::sleep(core::time::Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(50));
         drop(permit);
     });
     safina::executor::block_on(async move { sub.await });
@@ -322,7 +335,7 @@ fn await_returns_when_revoked() {
 #[async_test]
 async fn await_many() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     let mut receivers = Vec::new();
     for _ in 0..100_000 {
         let permit = top_permit.new_sub();
@@ -344,7 +357,7 @@ async fn await_many() {
 #[async_test]
 async fn await_loop() {
     let before = Instant::now();
-    let top_permit = permit::Permit::new();
+    let top_permit = Permit::new();
     let permit = top_permit.new_sub();
     for _ in 0..5 {
         let sub = permit.new_sub();
