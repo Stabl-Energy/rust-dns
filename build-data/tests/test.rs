@@ -497,9 +497,15 @@ fn no_debug_rebuilds_release() {
 fn set_build_date() {
     use spectral::iter::ContainingIntoIterAssertions;
     let _guard = LOCK.lock().unwrap();
-    let before = chrono::Utc.timestamp(epoch_time(), 0).date().naive_utc();
+    let before = chrono::Utc
+        .timestamp_opt(epoch_time(), 0)
+        .unwrap()
+        .date_naive();
     let stdout = exec_cargo_bin("test_set_build_date");
-    let after = chrono::Utc.timestamp(epoch_time(), 0).date().naive_utc();
+    let after = chrono::Utc
+        .timestamp_opt(epoch_time(), 0)
+        .unwrap()
+        .date_naive();
     let value =
         chrono::NaiveDate::parse_from_str(&stdout, "cargo:rustc-env=BUILD_DATE=%Y-%m-%dZ\n")
             .map_err(|e| {
@@ -529,10 +535,10 @@ fn set_build_time() {
         })
         .unwrap();
     let value = chrono::Utc
-        .timestamp(if time.hour() == 0 { after } else { before }, 0)
-        .date()
-        .and_time(time)
+        .timestamp_opt(if time.hour() == 0 { after } else { before }, 0)
         .unwrap()
+        .date_naive()
+        .and_time(time)
         .timestamp();
     expect_in(&value, before..=after).unwrap();
 }

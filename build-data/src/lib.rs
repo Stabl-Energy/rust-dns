@@ -91,6 +91,7 @@
 //!
 //! # Cargo Geiger Safety Report
 //! # Changelog
+//! - v0.1.4 - Update a dependency.
 //! - v0.1.3 - Update docs.
 //! - v0.1.2 - Rewrote based on
 //!     [feedback](https://www.reddit.com/r/rust/comments/mqnbvw/)
@@ -216,25 +217,34 @@ pub fn exec(cmd: impl AsRef<OsStr>, args: &[&str]) -> Result<String, String> {
 }
 
 /// Formats the epoch timestamp as a UTC date like `"2021-05-04Z"`.
+///
+/// # Panics when `epoch` is negative.
 #[must_use]
 pub fn format_date(epoch: i64) -> String {
-    chrono::TimeZone::timestamp(&chrono::Utc, epoch, 0)
+    chrono::TimeZone::timestamp_opt(&chrono::Utc, epoch, 0)
+        .unwrap()
         .format("%Y-%m-%dZ")
         .to_string()
 }
 
 /// Formats the epoch timestamp as a UTC time like `"13:02:59Z"`.
+///
+/// # Panics when `epoch` is negative.
 #[must_use]
 pub fn format_time(epoch: i64) -> String {
-    chrono::TimeZone::timestamp(&chrono::Utc, epoch, 0)
+    chrono::TimeZone::timestamp_opt(&chrono::Utc, epoch, 0)
+        .unwrap()
         .format("%H:%M:%SZ")
         .to_string()
 }
 
 /// Formats the epoch timestamp as a UTC timestamp like `"20201-05-04T13:02:59Z"`.
+///
+/// # Panics when `epoch` is negative.
 #[must_use]
 pub fn format_timestamp(epoch: i64) -> String {
-    chrono::TimeZone::timestamp(&chrono::Utc, epoch, 0)
+    chrono::TimeZone::timestamp_opt(&chrono::Utc, epoch, 0)
+        .unwrap()
         .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
