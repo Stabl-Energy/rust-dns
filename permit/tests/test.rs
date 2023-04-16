@@ -6,14 +6,13 @@ use std::time::{Duration, Instant};
 
 fn expect_elapsed(before: Instant, range_ms: Range<u64>) -> Result<(), String> {
     if range_ms.is_empty() {
-        return Err(format!("invalid range {:?}", range_ms));
+        return Err(format!("invalid range {range_ms:?}"));
     }
     let elapsed = before.elapsed();
     let duration_range = Duration::from_millis(range_ms.start)..Duration::from_millis(range_ms.end);
     if !duration_range.contains(&elapsed) {
         return Err(format!(
-            "{:?} elapsed, out of range {:?}",
-            elapsed, duration_range
+            "{elapsed:?} elapsed, out of range {duration_range:?}"
         ));
     }
     Ok(())
