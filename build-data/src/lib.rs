@@ -279,7 +279,7 @@ pub fn get_env(name: &str) -> Result<Option<String>, String> {
         Ok(value) => value,
         Err(std::env::VarError::NotPresent) => return Ok(None),
         Err(std::env::VarError::NotUnicode(_)) => {
-            return Err(format!("env var '{}' contains non-utf8 bytes", name))
+            return Err(format!("env var '{name}' contains non-utf8 bytes"))
         }
     };
     let trimmed = value.trim();
@@ -309,7 +309,7 @@ pub fn get_git_commit() -> Result<String, String> {
 pub fn get_git_commit_short() -> Result<String, String> {
     let long = get_git_commit()?;
     if long.len() < 7 {
-        return Err(format!("got malformed commit hash from git: '{}'", long));
+        return Err(format!("got malformed commit hash from git: '{long}'"));
     }
     let short = &long[0..7];
     Ok(short.to_string())
@@ -443,18 +443,12 @@ pub fn get_source_time() -> Result<i64, String> {
     CACHED_VALUE.get(|| {
         if let Some(value) = get_env("SOURCE_DATE_EPOCH").unwrap() {
             return value.parse().map_err(|_| {
-                format!(
-                    "failed parsing env var as i64: SOURCE_DATE_EPOCH='{}'",
-                    value
-                )
+                format!("failed parsing env var as i64: SOURCE_DATE_EPOCH='{value}'",)
             });
         }
         let stdout = exec("git", &["log", "-1", "--pretty=%ct"])?;
         stdout.parse().map_err(|_| {
-            format!(
-                "failed parsing output of 'git log -1 --pretty=%ct' as i64: {}",
-                stdout
-            )
+            format!("failed parsing output of 'git log -1 --pretty=%ct' as i64: {stdout}",)
         })
     })
 }

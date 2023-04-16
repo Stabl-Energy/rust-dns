@@ -35,7 +35,7 @@ impl TempEnvVarChange {
 impl Drop for TempEnvVarChange {
     fn drop(&mut self) {
         if let Some(value) = self.previous_value.take() {
-            std::env::set_var(&self.name, &value);
+            std::env::set_var(&self.name, value);
         }
     }
 }
@@ -80,7 +80,7 @@ fn expect_in<T: Debug + PartialOrd>(
     range: impl RangeBounds<T> + Debug,
 ) -> Result<(), String> {
     if !range.contains(value) {
-        return Err(format!("value `{:?}` not in `{:?}`", value, range));
+        return Err(format!("value `{value:?}` not in `{range:?}`"));
     }
     Ok(())
 }
@@ -137,7 +137,7 @@ fn once_i64_concurrent() {
     expect_elapsed(before, 50..150);
     value.get(|| panic!()).unwrap();
     assert_eq!(1, call_count.load(Ordering::Relaxed));
-    assert_that(&[111, 222]).contains(&results[0]);
+    assert_that(&[111, 222]).contains(results[0]);
     for n in &results {
         assert_eq!(results[0], *n);
     }
@@ -246,7 +246,7 @@ fn get_git_branch() {
     assert!(matcher.is_match(value.as_bytes()), "{:?}", value);
 
     assert_eq!(
-        format!("cargo:rustc-env=GIT_BRANCH={}\n", value),
+        format!("cargo:rustc-env=GIT_BRANCH={value}\n"),
         exec_cargo_bin("test_set_git_branch")
     );
 }
@@ -257,7 +257,7 @@ fn get_git_commit() {
     let value: String = build_data::get_git_commit().unwrap();
     assert!(safe_regex::regex!(br"[0-9a-f]{40}").is_match(value.as_bytes()));
     assert_eq!(
-        format!("cargo:rustc-env=GIT_COMMIT={}\n", value),
+        format!("cargo:rustc-env=GIT_COMMIT={value}\n"),
         exec_cargo_bin("test_set_git_commit")
     );
 }
@@ -268,7 +268,7 @@ fn get_git_commit_short() {
     let value: String = build_data::get_git_commit_short().unwrap();
     assert!(safe_regex::regex!(br"[0-9a-f]{7}").is_match(value.as_bytes()));
     assert_eq!(
-        format!("cargo:rustc-env=GIT_COMMIT_SHORT={}\n", value),
+        format!("cargo:rustc-env=GIT_COMMIT_SHORT={value}\n"),
         exec_cargo_bin("test_set_git_commit_short")
     );
 }
@@ -278,7 +278,7 @@ fn get_git_dirty() {
     let _guard = LOCK.lock().unwrap();
     let value = build_data::get_git_dirty().unwrap();
     assert_eq!(
-        format!("cargo:rustc-env=GIT_DIRTY={}\n", value),
+        format!("cargo:rustc-env=GIT_DIRTY={value}\n"),
         exec_cargo_bin("test_set_git_dirty")
     );
     if value {
@@ -312,7 +312,7 @@ fn get_hostname() {
     assert_eq!(&expected_hostname, &build_data::get_hostname().unwrap());
 
     assert_eq!(
-        format!("cargo:rustc-env=BUILD_HOSTNAME={}\n", expected_hostname),
+        format!("cargo:rustc-env=BUILD_HOSTNAME={expected_hostname}\n"),
         exec_cargo_bin("test_set_build_hostname")
     );
 }
@@ -322,7 +322,7 @@ fn get_rustc_version() {
     let _guard = LOCK.lock().unwrap();
     let _change_guard = TempEnvVarChange::new(
         "RUSTC",
-        &Path::new(&std::env::var_os("CARGO").unwrap())
+        Path::new(&std::env::var_os("CARGO").unwrap())
             .parent()
             .unwrap()
             .join("rustc"),
@@ -334,7 +334,7 @@ fn get_rustc_version() {
     assert!(matcher.is_match(value.as_bytes()));
 
     assert_eq!(
-        format!("cargo:rustc-env=RUSTC_VERSION={}\n", value),
+        format!("cargo:rustc-env=RUSTC_VERSION={value}\n"),
         exec_cargo_bin("test_set_rustc_version")
     );
     assert_eq!(
@@ -516,7 +516,7 @@ fn set_build_date() {
                 )
             })
             .unwrap();
-    assert_that(&[before, after]).contains(&value);
+    assert_that(&[before, after]).contains(value);
 }
 
 #[test]
