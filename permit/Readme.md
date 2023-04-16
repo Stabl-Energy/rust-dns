@@ -65,7 +65,7 @@ wait_for_shutdown_signal();
 // finish and drop their permits.
 top_permit
     .revoke()
-    .try_wait_for(Duration::from_secs(3))
+    .wait_subs_timeout(Duration::from_secs(3))
     .unwrap();
 ```
 
@@ -83,12 +83,18 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.1.5
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.2.0
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 # Changelog
+- v0.2.0
+   - Rename `try_wait_for` to `wait_subs_timeout`
+   - Rename `try_wait_until` to `wait_subs_deadline`
+   - Replace spinlock with Condvar in `wait*` methods
+   - Remove `wait`
+   - Add `sleep` and `sleep_until`
 - v0.1.5 - Implement `Debug`
 - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
   where `revoke()` and then `wait()` would not wait.

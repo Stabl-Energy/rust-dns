@@ -68,12 +68,18 @@
 //! // finish and drop their permits.
 //! top_permit
 //!     .revoke()
-//!     .try_wait_for(Duration::from_secs(3))
+//!     .wait_subs_timeout(Duration::from_secs(3))
 //!     .unwrap();
 //! ```
 //!
 //! # Cargo Geiger Safety Report
 //! # Changelog
+//! - v0.2.0
+//!    - Rename `try_wait_for` to `wait_subs_timeout`
+//!    - Rename `try_wait_until` to `wait_subs_deadline`
+//!    - Replace spinlock with Condvar in `wait*` methods
+//!    - Remove `wait`
+//!    - Add `sleep` and `sleep_until`
 //! - v0.1.5 - Implement `Debug`
 //! - v0.1.4 - Fix [bug](https://gitlab.com/leonhard-llc/ops/-/issues/2)
 //!   where `revoke()` and then `wait()` would not wait.
@@ -93,7 +99,7 @@ use core::task::{Context, Poll, Waker};
 use core::time::Duration;
 use std::collections::HashSet;
 use std::future::Future;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::Instant;
 
 // This code was beautiful before implementing `Future`:
@@ -101,6 +107,7 @@ use std::time::Instant;
 //
 // How can we simplify it?
 
+#[derive(Clone)]
 struct ArcNode(Arc<Node>);
 impl PartialEq for ArcNode {
     fn eq(&self, other: &Self) -> bool {
@@ -155,9 +162,9 @@ impl Inner {
         }
     }
 
-    pub fn revoke(&mut self) -> (Option<Waker>, HashSet<ArcNode>) {
+    pub fn revoke(&mut self) -> (Option<Waker>, Vec<ArcNode>) {
         self.revoked = true;
-        (self.opt_waker.take(), core::mem::take(&mut self.subs))
+        (self.opt_waker.take(), self.subs.iter().cloned().collect())
     }
 }
 
@@ -166,6 +173,7 @@ struct Node {
     superior: Weak<Node>,
     atomic_revoked: AtomicBool,
     inner: Mutex<Inner>,
+    condvar: Condvar,
 }
 impl Node {
     #[must_use]
@@ -174,6 +182,7 @@ impl Node {
             superior,
             atomic_revoked: AtomicBool::new(revoked),
             inner: Mutex::new(Inner::new(revoked)),
+            condvar: Condvar::new(),
         }
     }
 
@@ -204,11 +213,7 @@ impl Node {
 
     fn remove_sub(&self, node: &Arc<Node>) {
         self.inner.lock().unwrap().remove_sub(node);
-    }
-
-    #[must_use]
-    pub fn has_subs(self: &Arc<Self>) -> bool {
-        Arc::weak_count(self) != 0
+        self.condvar.notify_all();
     }
 
     #[must_use]
@@ -224,6 +229,7 @@ impl Node {
     fn revoke(self: &Arc<Self>, wake: bool) {
         self.atomic_revoked
             .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.condvar.notify_all();
         let (opt_waker, subs) = self.inner.lock().unwrap().revoke();
         if wake {
             if let Some(waker) = opt_waker {
@@ -252,6 +258,15 @@ impl core::fmt::Display for DeadlineExceeded {
 }
 impl std::error::Error for DeadlineExceeded {}
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct PermitRevoked;
+impl core::fmt::Display for PermitRevoked {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+        write!(f, "PermitRevoked")
+    }
+}
+impl std::error::Error for PermitRevoked {}
+
 /// A struct for cancelling operations.
 ///
 /// Use [`new_sub()`](#method.new_sub) to make a subordinate permit.
@@ -279,7 +294,7 @@ impl std::error::Error for DeadlineExceeded {}
 /// // finish and drop their permits.
 /// top_permit
 ///     .revoke()
-///     .try_wait_for(core::time::Duration::from_secs(3))
+///     .wait_subs_timeout(core::time::Duration::from_secs(3))
 ///     .unwrap();
 /// ```
 pub struct Permit {
@@ -341,47 +356,68 @@ impl Permit {
     /// been dropped.
     ///
     /// This includes direct subordinates and their subordinates, recursively.
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn has_subs(&self) -> bool {
-        self.node.has_subs()
+        !self.node.inner.lock().unwrap().subs.is_empty()
     }
 
-    /// Wait indefinitely for all subordinate permits to drop.
-    ///
-    /// This waits for all direct subordinates and their subordinates,
-    /// recursively.
-    pub fn wait(&self) {
-        while self.try_wait_for(Duration::from_secs(3600)).is_err() {}
-    }
-
-    /// Wait for all subordinate permits to drop.
-    ///
-    /// This waits for all direct subordinates and their subordinates,
-    /// recursively.
+    /// Waits until `duration` time passes or the permit is revoked.
     ///
     /// # Errors
-    /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) if the subordinate permits
-    /// are not all dropped before `duration` passes.
-    pub fn try_wait_for(&self, duration: Duration) -> Result<(), DeadlineExceeded> {
-        self.try_wait_until(Instant::now() + duration)
-    }
-
-    /// Wait for all subordinate permits to drop.
-    ///
-    /// This waits for all direct subordinates and their subordinates,
-    /// recursively.
-    ///
-    /// # Errors
-    /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) if the subordinate permits
-    /// are not all dropped before `deadline` passes.
-    pub fn try_wait_until(&self, deadline: Instant) -> Result<(), DeadlineExceeded> {
-        while Instant::now() < deadline {
-            if !self.has_subs() {
-                return Ok(());
-            }
-            std::thread::sleep(Duration::from_millis(1));
+    /// Returns `Err` when the permit is revoked.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn sleep(&self, duration: Duration) -> Result<(), PermitRevoked> {
+        let inner_guard = self.node.inner.lock().unwrap();
+        let (_guard, wait_result) = self
+            .node
+            .condvar
+            .wait_timeout_while(inner_guard, duration, |inner_guard| !inner_guard.revoked)
+            .unwrap();
+        if wait_result.timed_out() {
+            Ok(())
+        } else {
+            Err(PermitRevoked {})
         }
-        Err(DeadlineExceeded {})
+    }
+
+    /// Waits until `deadline` or the permit is revoked.
+    ///
+    /// # Errors
+    /// Returns `Err` when the permit is revoked.
+    pub fn sleep_until(&self, deadline: Instant) -> Result<(), PermitRevoked> {
+        let duration = deadline.saturating_duration_since(Instant::now());
+        self.sleep(duration)
+    }
+
+    /// Waits for all direct subordinate permits to drop.
+    ///
+    /// # Errors
+    /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) when `duration` passes
+    /// and the permit has a subordinate permit.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn wait_subs_timeout(&self, duration: Duration) -> Result<(), DeadlineExceeded> {
+        let guard = self.node.inner.lock().unwrap();
+        let (_guard, wait_result) = self
+            .node
+            .condvar
+            .wait_timeout_while(guard, duration, |guard| !guard.subs.is_empty())
+            .unwrap();
+        if wait_result.timed_out() {
+            Err(DeadlineExceeded {})
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Waits for all direct subordinate permits to drop.
+    ///
+    /// # Errors
+    /// Returns [`DeadlineExceeded`](struct.DeadlineExceeded.html) when `deadline` passes
+    /// and the permit has a subordinate permit.
+    pub fn wait_subs_deadline(&self, deadline: Instant) -> Result<(), DeadlineExceeded> {
+        let duration = deadline.saturating_duration_since(Instant::now());
+        self.wait_subs_timeout(duration)
     }
 }
 impl Drop for Permit {

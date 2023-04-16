@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 use core::ops::Range;
-use permit::{DeadlineExceeded, Permit};
+use permit::{DeadlineExceeded, Permit, PermitRevoked};
 use safina_async_test::async_test;
 use std::time::{Duration, Instant};
 
@@ -154,6 +154,45 @@ fn revoke_superior_and_clone() {
 }
 
 #[test]
+fn sleep() {
+    let permit1 = Permit::new();
+    let permit2 = permit1.new_sub();
+    let permit3 = permit2.new_sub();
+    let before = Instant::now();
+    permit3.sleep(Duration::from_millis(50)).unwrap();
+    expect_elapsed(before, 50..100).unwrap();
+
+    let before = Instant::now();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        drop(permit1);
+    });
+    let result = permit3.sleep(Duration::from_millis(100));
+    assert_eq!(Err(PermitRevoked), result);
+    expect_elapsed(before, 50..100).unwrap();
+}
+
+#[test]
+fn sleep_until() {
+    let permit1 = Permit::new();
+    let permit2 = permit1.new_sub();
+    let before = Instant::now();
+    permit2
+        .sleep_until(before + Duration::from_millis(50))
+        .unwrap();
+    expect_elapsed(before, 50..100).unwrap();
+
+    let before = Instant::now();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        drop(permit1);
+    });
+    let result = permit2.sleep_until(before + Duration::from_millis(100));
+    assert_eq!(Err(PermitRevoked), result);
+    expect_elapsed(before, 50..100).unwrap();
+}
+
+#[test]
 fn sync_and_send() {
     let superior = Permit::new();
     let pmt = superior.new_sub();
@@ -173,123 +212,62 @@ fn sync_and_send() {
 #[test]
 fn has_subs() {
     let before = Instant::now();
-    let top_permit = Permit::new();
-    assert!(!top_permit.has_subs());
-    let sub1 = top_permit.new_sub();
-    assert!(top_permit.has_subs());
+    let permit = Permit::new();
+    assert!(!permit.has_subs());
+    let sub1 = permit.new_sub();
+    assert!(permit.has_subs());
     drop(sub1);
-    assert!(!top_permit.has_subs());
+    assert!(!permit.has_subs());
 
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
+    for sleep_duration in [Duration::from_millis(50), Duration::from_millis(100)] {
+        let sub_permit = permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            drop(permit);
+            std::thread::sleep(sleep_duration);
+            drop(sub_permit);
         });
     }
-    assert!(top_permit.has_subs());
-    top_permit.wait();
-    expect_elapsed(before, 50..100).unwrap();
-    assert!(!top_permit.has_subs());
+    assert!(permit.has_subs());
+    permit.wait_subs_timeout(Duration::from_secs(1)).unwrap();
+    expect_elapsed(before, 100..150).unwrap();
+    assert!(!permit.has_subs());
 }
 
 #[test]
-fn wait() {
-    let before = Instant::now();
+fn wait_subs_timeout() {
     let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
+    let permit = top_permit.new_sub();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(50));
+        drop(top_permit);
+    });
+    for sleep_duration in [Duration::from_millis(50), Duration::from_millis(150)] {
+        let sub_permit = permit.new_sub();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            drop(permit);
+            std::thread::sleep(sleep_duration);
+            drop(sub_permit);
         });
     }
-    top_permit.wait();
-    expect_elapsed(before, 50..100).unwrap();
-}
-
-#[test]
-// https://gitlab.com/leonhard-llc/ops/-/issues/2
-fn revoke_then_wait() {
     let before = Instant::now();
-    let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            drop(permit);
-        });
-    }
-    top_permit.revoke();
-    top_permit.wait();
-    expect_elapsed(before, 50..100).unwrap();
-}
-
-#[test]
-fn try_wait_for() {
-    let before = Instant::now();
-    let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            drop(permit);
-        });
-    }
-    top_permit.try_wait_for(Duration::from_millis(100)).unwrap();
-    expect_elapsed(before, 50..100).unwrap();
-}
-
-#[test]
-fn try_wait_until() {
-    let before = Instant::now();
-    let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(50));
-            drop(permit);
-        });
-    }
-    top_permit
-        .try_wait_until(before + Duration::from_millis(100))
+    let result = permit.wait_subs_timeout(Duration::from_millis(100));
+    expect_elapsed(before, 100..150).unwrap();
+    assert_eq!(Err(DeadlineExceeded), result);
+    permit
+        .wait_subs_timeout(Duration::from_millis(100))
         .unwrap();
-    expect_elapsed(before, 50..100).unwrap();
+    expect_elapsed(before, 150..250).unwrap();
 }
 
 #[test]
-fn try_wait_for_deadline_exceeded() {
-    let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(100));
-            drop(permit);
-        });
-    }
+fn wait_subs_deadline() {
     let before = Instant::now();
-    assert_eq!(
-        Err(DeadlineExceeded),
-        top_permit.try_wait_for(Duration::from_millis(50))
-    );
-    expect_elapsed(before, 50..100).unwrap();
-}
-
-#[test]
-fn try_wait_until_deadline_exceeded() {
-    let top_permit = Permit::new();
-    for _ in 0..2 {
-        let permit = top_permit.new_sub();
-        std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(100));
-            drop(permit);
-        });
-    }
-    let before = Instant::now();
-    assert_eq!(
-        Err(DeadlineExceeded),
-        top_permit.try_wait_until(before + Duration::from_millis(50))
-    );
+    let permit = Permit::new();
+    let sub_permit = permit.new_sub();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(100));
+        drop(sub_permit);
+    });
+    let deadline = before + Duration::from_millis(50);
+    assert_eq!(Err(DeadlineExceeded), permit.wait_subs_deadline(deadline));
     expect_elapsed(before, 50..100).unwrap();
 }
 
