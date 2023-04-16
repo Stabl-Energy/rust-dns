@@ -44,11 +44,8 @@ fn simulate(
         next_request_instant = client.check(limiter, *clock);
         num_requests += 1;
     }
-    println!(
-        "Simulated {} request over {} seconds",
-        num_requests, num_seconds
-    );
-    println!("client: {:?}", client);
+    println!("Simulated {num_requests} request over {num_seconds} seconds");
+    println!("client: {client:?}");
 }
 
 macro_rules! assert_contains {
@@ -121,17 +118,17 @@ fn test_debug() {
     let limiter =
         ProbRateLimiter::new_custom(Duration::from_secs(7), 11, Instant::now(), Rand32::new(1))
             .unwrap();
-    let debug_string = format!("{:?}", limiter);
-    assert!(debug_string.contains("ProbRateLimiter"), "{}", debug_string);
-    assert!(debug_string.contains("22"), "{}", debug_string);
-    assert!(debug_string.contains('7'), "{}", debug_string);
+    let debug_string = format!("{limiter:?}");
+    assert!(debug_string.contains("ProbRateLimiter"), "{debug_string}");
+    assert!(debug_string.contains("22"), "{debug_string}");
+    assert!(debug_string.contains('7'), "{debug_string}");
 }
 
 #[test]
 fn test_clone() {
     let mut limiter = ProbRateLimiter::new(1);
     let mut clone = limiter.clone();
-    assert_eq!(format!("{:?}", limiter), format!("{:?}", clone));
+    assert_eq!(format!("{limiter:?}"), format!("{clone:?}"));
     let now = Instant::now();
     assert!(limiter.check(1, now));
     assert!(limiter.check(1, now));

@@ -155,7 +155,7 @@ impl ProbRateLimiter {
         prng: Rand32,
     ) -> Result<Self, String> {
         if tick_duration.as_micros() == 0 {
-            return Err(format!("tick_duration too small: {:?}", tick_duration));
+            return Err(format!("tick_duration too small: {tick_duration:?}"));
         }
         Ok(Self {
             tick_duration,
