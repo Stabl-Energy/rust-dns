@@ -74,6 +74,7 @@
 //!
 //! # Cargo Geiger Safety Report
 //! # Changelog
+//! - v0.2.1 - Fix bug where `sleep` and `sleep_until` would sometimes not return early.
 //! - v0.2.0
 //!    - Rename `try_wait_for` to `wait_subs_timeout`
 //!    - Rename `try_wait_until` to `wait_subs_deadline`
@@ -229,8 +230,8 @@ impl Node {
     fn revoke(self: &Arc<Self>, wake: bool) {
         self.atomic_revoked
             .store(true, std::sync::atomic::Ordering::Relaxed);
-        self.condvar.notify_all();
         let (opt_waker, subs) = self.inner.lock().unwrap().revoke();
+        self.condvar.notify_all();
         if wake {
             if let Some(waker) = opt_waker {
                 waker.wake();

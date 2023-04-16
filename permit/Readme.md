@@ -83,12 +83,13 @@ Symbols:
 
 Functions  Expressions  Impls  Traits  Methods  Dependency
 
-0/0        0/0          0/0    0/0     0/0      🔒  permit 0.2.0
+0/0        0/0          0/0    0/0     0/0      🔒  permit 0.2.1
 
 0/0        0/0          0/0    0/0     0/0    
 
 ```
 # Changelog
+- v0.2.1 - Fix bug where `sleep` and `sleep_until` would sometimes not return early.
 - v0.2.0
    - Rename `try_wait_for` to `wait_subs_timeout`
    - Rename `try_wait_until` to `wait_subs_deadline`

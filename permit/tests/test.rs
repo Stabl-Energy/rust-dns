@@ -183,12 +183,12 @@ fn sleep_until() {
 
     let before = Instant::now();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(50));
         drop(permit1);
     });
-    let result = permit2.sleep_until(before + Duration::from_millis(200));
+    let result = permit2.sleep_until(before + Duration::from_millis(100));
     assert_eq!(Err(PermitRevoked), result);
-    expect_elapsed(before, 100..199).unwrap();
+    expect_elapsed(before, 50..100).unwrap();
 }
 
 #[test]
