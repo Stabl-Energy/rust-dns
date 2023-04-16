@@ -135,7 +135,7 @@ impl From<Ipv6Addr> for IpAddrKey {
 impl Display for IpAddrKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if let Some(addr) = to_ipv4_mapped(&self.0) {
-            write!(f, "{}", addr)
+            write!(f, "{addr}")
         } else {
             write!(f, "{}", self.0)
         }
@@ -335,7 +335,7 @@ impl<Key: Clone + Copy + Eq + Hash, const MAX_KEYS: usize> FairRateLimiter<Key, 
         now: Instant,
     ) -> Result<Self, String> {
         if tick_duration.as_micros() == 0 {
-            return Err(format!("tick_duration too small: {:?}", tick_duration));
+            return Err(format!("tick_duration too small: {tick_duration:?}"));
         }
         Ok(Self {
             tick_duration,
@@ -442,8 +442,7 @@ pub fn new_fair_ip_address_rate_limiter(
     let sources_max = (max_cost_per_sec as u32).saturating_sub(other_max);
     if max_cost_per_sec != 0.0 && sources_max == 0 {
         return Err(format!(
-            "max_cost_per_sec is too small: {:?}",
-            max_cost_per_sec
+            "max_cost_per_sec is too small: {max_cost_per_sec:?}"
         ));
     }
     FairRateLimiter::new(

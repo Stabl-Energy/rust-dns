@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["filesystem", "development-tools::testing"]
 description = "Simple temporary file with cleanup"
-edition = "2018"
+edition = "2021"
 keywords = ["temp", "file", "tmpfile", "mktemp", "tempnam"]
 license = "Apache-2.0"
 name = "temp-file"

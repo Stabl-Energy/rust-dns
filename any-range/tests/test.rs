@@ -46,12 +46,12 @@ fn test() {
     assert!(range_to_inclusive.contains(&5));
     assert!(!range_to_inclusive.contains(&6));
 
-    assert_eq!("AnyRange(3..5)", &format!("{:?}", range));
-    assert_eq!("AnyRange(3..)", &format!("{:?}", range_from));
-    assert_eq!("AnyRange(..)", &format!("{:?}", range_full));
-    assert_eq!("AnyRange(3..=5)", &format!("{:?}", range_inclusive));
-    assert_eq!("AnyRange(..5)", &format!("{:?}", range_to));
-    assert_eq!("AnyRange(..=5)", &format!("{:?}", range_to_inclusive));
+    assert_eq!("AnyRange(3..5)", &format!("{range:?}"));
+    assert_eq!("AnyRange(3..)", &format!("{range_from:?}"));
+    assert_eq!("AnyRange(..)", &format!("{range_full:?}"));
+    assert_eq!("AnyRange(3..=5)", &format!("{range_inclusive:?}"));
+    assert_eq!("AnyRange(..5)", &format!("{range_to:?}"));
+    assert_eq!("AnyRange(..=5)", &format!("{range_to_inclusive:?}"));
 
     assert_eq!(AnyRange::Range(0..2), AnyRange::Range(0..2));
     assert!(AnyRange::Range(0..1) < AnyRange::Range(0..2));

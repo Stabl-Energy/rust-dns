@@ -1,7 +1,7 @@
 [package]
 publish = false
 description = "Integration test for `build-data` crate"
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 name = "build-data-test"
 version = "0.1.0"

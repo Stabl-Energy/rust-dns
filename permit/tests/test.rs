@@ -31,14 +31,14 @@ fn new() {
 #[test]
 fn debug() {
     let pmt = Permit::default();
-    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{:?}", &pmt));
+    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{pmt:?}"));
     let sub1 = pmt.new_sub();
     let _sub2 = pmt.new_sub();
-    assert_eq!("Permit{revoked=false,num_subs=2}", &format!("{:?}", &pmt));
-    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{:?}", &sub1));
+    assert_eq!("Permit{revoked=false,num_subs=2}", &format!("{pmt:?}"));
+    assert_eq!("Permit{revoked=false,num_subs=0}", &format!("{sub1:?}"));
     pmt.revoke();
-    assert_eq!("Permit{revoked=true,num_subs=2}", &format!("{:?}", &pmt));
-    assert_eq!("Permit{revoked=true,num_subs=0}", &format!("{:?}", &sub1));
+    assert_eq!("Permit{revoked=true,num_subs=2}", &format!("{pmt:?}"));
+    assert_eq!("Permit{revoked=true,num_subs=0}", &format!("{sub1:?}"));
 }
 
 #[test]

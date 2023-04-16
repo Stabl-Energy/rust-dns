@@ -66,10 +66,10 @@ pub fn serve_udp(
     records: &[DnsRecord],
 ) -> Result<(), String> {
     sock.set_read_timeout(Some(Duration::from_millis(500)))
-        .map_err(|e| format!("error setting socket read timeout: {}", e))?;
+        .map_err(|e| format!("error setting socket read timeout: {e}"))?;
     let local_addr = sock
         .local_addr()
-        .map_err(|e| format!("error getting socket local address: {}", e))?;
+        .map_err(|e| format!("error getting socket local address: {e}"))?;
     let name_to_records: MultiMap<&DnsName, &DnsRecord> =
         records.iter().map(|x| (x.name(), x)).collect();
     while !permit.is_revoked() {
@@ -88,7 +88,7 @@ pub fn serve_udp(
             Err(e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
                 continue
             }
-            Err(e) => return Err(format!("error reading socket {:?}: {}", local_addr, e)),
+            Err(e) => return Err(format!("error reading socket {local_addr:?}: {e}")),
         };
         let now = Instant::now();
         if !response_bytes_rate_limiter.attempt(now) {
@@ -98,7 +98,7 @@ pub fn serve_udp(
         let out = match process_datagram(&name_to_records, &mut buf) {
             Ok(buf) => buf,
             Err(e) => {
-                println!("dropping bad request: {:?}", e);
+                println!("dropping bad request: {e:?}");
                 continue;
             }
         };
@@ -107,14 +107,12 @@ pub fn serve_udp(
         }
         response_bytes_rate_limiter.record(u32::try_from(out.len()).unwrap());
         let sent_len = sock
-            .send_to(out.readable(), &addr)
-            .map_err(|e| format!("error sending response to {:?}: {}", addr, e))?;
+            .send_to(out.readable(), addr)
+            .map_err(|e| format!("error sending response to {addr:?}: {e}"))?;
         if sent_len != out.len() {
             return Err(format!(
-                "sent only {} bytes of {} byte response to {:?}",
-                sent_len,
-                out.len(),
-                addr
+                "sent only {sent_len} bytes of {} byte response to {addr:?}",
+                out.len()
             ));
         }
     }

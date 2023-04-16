@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["concurrency", "asynchronous", "network-programming"]
 description = "A struct for cancelling operations."
-edition = "2018"
+edition = "2021"
 keywords = ["cancel", "context", "ctx", "done", "shutdown"]
 license = "Apache-2.0"
 name = "permit"

@@ -187,10 +187,9 @@ pub fn exec(cmd: impl AsRef<OsStr>, args: &[&str]) -> Result<String, String> {
         .output()
         .map_err(|e| {
             format!(
-                "error executing '{} {}': {}",
+                "error executing '{} {}': {e}",
                 cmd.as_ref().to_string_lossy(),
                 args.join(" "),
-                e
             )
         })?;
     if !output.status.success() {

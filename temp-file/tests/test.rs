@@ -18,13 +18,13 @@ fn get_file_len(temp_file: &TempFile) -> Result<u64, std::io::Error> {
     } else {
         Err(std::io::Error::new(
             ErrorKind::InvalidInput,
-            format!("{:?} is not a file", path),
+            format!("{path:?} is not a file"),
         ))
     }
 }
 
 fn path_exists(path: &Path) -> bool {
-    !matches!(std::fs::metadata(&path), Err(e) if e.kind() == ErrorKind::NotFound)
+    !matches!(std::fs::metadata(path), Err(e) if e.kind() == ErrorKind::NotFound)
 }
 
 #[test]
@@ -48,10 +48,9 @@ fn empty_error() {
     let msg = any.downcast_ref::<String>().unwrap();
     assert!(
         msg.contains("error creating file"),
-        "unexpected error {:?}",
-        msg
+        "unexpected error {msg:?}",
     );
-    assert!(msg.contains("AlreadyExists"), "unexpected error {:?}", msg);
+    assert!(msg.contains("AlreadyExists"), "unexpected error {msg:?}");
 }
 
 #[test]
@@ -85,19 +84,16 @@ fn builder_all_options() {
     assert_eq!(
         Some(temp_dir.path()),
         temp_file.path().parent(),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
     let filename = temp_file.path().file_name().unwrap();
     assert!(
         filename.to_str().unwrap().starts_with("prefix1"),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
     assert!(
         filename.to_str().unwrap().ends_with("suffix1"),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
 }
 
@@ -125,8 +121,7 @@ fn temp_file_new_error() {
     assert!(
         e.to_string()
             .starts_with(&format!("error creating file {:?}", temp_file.path())),
-        "unexpected error {:?}",
-        e
+        "unexpected error {e:?}",
     );
 }
 
@@ -138,8 +133,7 @@ fn temp_file_in_dir() {
     assert_eq!(
         Some(temp_dir.path()),
         temp_file.path().parent(),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
 }
 
@@ -150,8 +144,7 @@ fn temp_file_with_prefix() {
     let filename = temp_file.path().file_name().unwrap();
     assert!(
         filename.to_str().unwrap().starts_with("prefix1"),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
 }
 
@@ -162,8 +155,7 @@ fn temp_file_with_suffix() {
     let filename = temp_file.path().file_name().unwrap();
     assert!(
         filename.to_str().unwrap().ends_with("suffix1"),
-        "{:?}",
-        temp_file
+        "{temp_file:?}",
     );
 }
 
@@ -189,9 +181,8 @@ fn temp_file_with_contents_error() {
     let e = result.unwrap_err();
     assert!(
         e.to_string()
-            .starts_with(&format!("error writing file {:?}", temp_file_path)),
-        "unexpected error {:?}",
-        e
+            .starts_with(&format!("error writing file {temp_file_path:?}")),
+        "unexpected error {e:?}",
     );
 }
 
@@ -235,9 +226,8 @@ fn cleanup_error() {
     let e = result.unwrap_err();
     assert!(
         e.to_string()
-            .starts_with(&format!("error removing file {:?}", path)),
-        "unexpected error {:?}",
-        e
+            .starts_with(&format!("error removing file {path:?}")),
+        "unexpected error {e:?}",
     );
 }
 
@@ -296,9 +286,8 @@ fn drop_error_panic() {
     std::fs::remove_dir(&path).unwrap();
     let msg = result.unwrap_err().downcast::<String>().unwrap();
     assert!(
-        msg.contains("error removing file ",),
-        "unexpected panic message {:?}",
-        msg
+        msg.contains("error removing file "),
+        "unexpected panic message {msg:?}",
     );
 }
 
@@ -321,7 +310,7 @@ fn test_derived() {
     // Clone
     let t1_clone = t1.clone();
     // Debug
-    assert!(format!("{:?}", t2).contains("TempFile"));
+    assert!(format!("{t2:?}").contains("TempFile"));
     // PartialEq
     assert_eq!(t1, t1_clone);
     // Ord

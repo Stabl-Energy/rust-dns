@@ -134,7 +134,7 @@ impl TempDir {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(std::io::Error::new(
                 e.kind(),
-                format!("error removing directory and contents {:?}: {}", path, e),
+                format!("error removing directory and contents {path:?}: {e}"),
             )),
         }
     }
@@ -187,7 +187,7 @@ impl TempDir {
         std::fs::create_dir(&path_buf).map_err(|e| {
             std::io::Error::new(
                 e.kind(),
-                format!("error creating directory {:?}: {}", &path_buf, e),
+                format!("error creating directory {path_buf:?}: {e}"),
             )
         })?;
         Ok(Self {

@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["concurrency"]
 description = "A lock struct with a `const fn` constructor and no `unsafe`"
-edition = "2018"
+edition = "2021"
 keywords = ["lock", "safe"]
 license = "Apache-2.0"
 name = "safe-lock"

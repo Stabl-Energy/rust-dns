@@ -171,10 +171,7 @@ impl TempFile {
         open_opts.create_new(true);
         open_opts.write(true);
         open_opts.open(&file_path).map_err(|e| {
-            std::io::Error::new(
-                e.kind(),
-                format!("error creating file {:?}: {}", &file_path, e),
-            )
+            std::io::Error::new(e.kind(), format!("error creating file {file_path:?}: {e}"))
         })?;
         Ok(Self {
             path_buf: file_path,
@@ -189,7 +186,7 @@ impl TempFile {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(std::io::Error::new(
                 e.kind(),
-                format!("error removing file {:?}: {}", path, e),
+                format!("error removing file {path:?}: {e}"),
             )),
         }
     }
@@ -273,7 +270,7 @@ impl TempFile {
     pub fn with_contents(self, contents: &[u8]) -> Result<Self, std::io::Error> {
         let path = self.path_buf.as_path();
         std::fs::write(path, contents).map_err(|e| {
-            std::io::Error::new(e.kind(), format!("error writing file {:?}: {}", path, e))
+            std::io::Error::new(e.kind(), format!("error writing file {path:?}: {e}"))
         })?;
         Ok(self)
     }

@@ -78,7 +78,7 @@ fn othername_cert() -> rustls::Certificate {
 fn start_server() -> SocketAddr {
     // Start a server thread.
     let localhost_key = rustls::PrivateKey(base64_decode(LOCALHOST_KEY_DER_BASE64).unwrap());
-    let listener = std::net::TcpListener::bind(&("127.0.0.1", 0)).unwrap();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let addr = listener.local_addr().unwrap();
     let mut server_config = rustls::ServerConfig::new(rustls::NoClientAuth::new());
     server_config
@@ -90,7 +90,7 @@ fn start_server() -> SocketAddr {
         let mut tls_session = rustls::ServerSession::new(&server_config_arc);
         let mut tls_stream = rustls::Stream::new(&mut tls_session, &mut tcp_stream);
         if let Err(e) = tls_stream.write_all(b"response1") {
-            eprintln!("WARN server write error: {:?}", e);
+            eprintln!("WARN server write error: {e:?}");
         }
     });
     addr
@@ -102,7 +102,7 @@ fn connect_pinned_connect_failure() {
     match connect_pinned(addr, vec![othername_cert(), localhost_cert()]) {
         Ok(_) => panic!("expected error"),
         Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {}
-        Err(e) => panic!("unexpected err: {}", e),
+        Err(e) => panic!("unexpected err: {e}"),
     }
 }
 
@@ -122,7 +122,7 @@ fn connect_pinned_invalid_cert() {
     let mut response = String::new();
     match stream.read_to_string(&mut response) {
         Err(e) if e.to_string() == *"invalid certificate: UnknownIssuer" => {}
-        other => panic!("{:?}", other),
+        other => panic!("{other:?}"),
     };
 }
 
@@ -167,6 +167,6 @@ fn verifier_error() {
             // the TSL connection.  The server's stream read/write fails with:
             // "Custom { kind: InvalidData, error: AlertReceived(BadCertificate) }"
         }
-        other => panic!("{:?}", other),
+        other => panic!("{other:?}"),
     };
 }

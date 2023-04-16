@@ -94,12 +94,11 @@ impl DnsRecord {
         let dns_name = DnsName::new(name)?;
         let ip_addr: IpAddr = ipv4_addr
             .parse()
-            .map_err(|e| format!("failed parsing {:?} as an IP address: {}", ipv4_addr, e))?;
+            .map_err(|e| format!("failed parsing {ipv4_addr:?} as an IP address: {e}"))?;
         match ip_addr {
             IpAddr::V4(addr) => Ok(Self::A(dns_name, addr)),
             IpAddr::V6(addr) => Err(format!(
-                "cannot create an A record with ipv6 address {:?}",
-                addr
+                "cannot create an A record with ipv6 address {addr:?}"
             )),
         }
     }
@@ -111,11 +110,10 @@ impl DnsRecord {
         let dns_name = DnsName::new(name)?;
         let ip_addr: IpAddr = ipv6_addr
             .parse()
-            .map_err(|e| format!("failed parsing {:?} as an IP address: {}", ipv6_addr, e))?;
+            .map_err(|e| format!("failed parsing {ipv6_addr:?} as an IP address: {e}"))?;
         match ip_addr {
             IpAddr::V4(addr) => Err(format!(
-                "cannot create an AAAA record with ipv4 address {:?}",
-                addr
+                "cannot create an AAAA record with ipv4 address {addr:?}"
             )),
             IpAddr::V6(addr) => Ok(Self::AAAA(dns_name, addr)),
         }
@@ -193,20 +191,19 @@ impl DnsRecord {
             DnsRecord::CNAME(_, target_name) => {
                 Self::write_rdata(target_name.as_bytes()?.readable(), out)
             }
-            DnsRecord::Unknown(_, _) => Err(DnsError::Internal(format!(
-                "cannot write record {:?}",
-                self
-            ))),
+            DnsRecord::Unknown(_, _) => {
+                Err(DnsError::Internal(format!("cannot write record {self:?}")))
+            }
         }
     }
 }
 impl Debug for DnsRecord {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
         match self {
-            DnsRecord::A(name, addr) => write!(f, "DnsRecord::A({},{})", name, addr),
-            DnsRecord::AAAA(name, addr) => write!(f, "DnsRecord::AAAA({},{})", name, addr),
-            DnsRecord::CNAME(name, target) => write!(f, "DnsRecord::CNAME({},{})", name, target),
-            DnsRecord::Unknown(name, typ) => write!(f, "DnsRecord::Unknown({},{})", name, typ),
+            DnsRecord::A(name, addr) => write!(f, "DnsRecord::A({name},{addr})"),
+            DnsRecord::AAAA(name, addr) => write!(f, "DnsRecord::AAAA({name},{addr})"),
+            DnsRecord::CNAME(name, target) => write!(f, "DnsRecord::CNAME({name},{target})"),
+            DnsRecord::Unknown(name, typ) => write!(f, "DnsRecord::Unknown({name},{typ})"),
         }
     }
 }

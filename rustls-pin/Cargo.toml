@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["network-programming", "cryptography"]
 description = "Server certificate pinning with `rustls`"
-edition = "2018"
+edition = "2021"
 keywords = ["pin", "pinning", "rustls", "tls", "certificate"]
 license = "Apache-2.0"
 name = "rustls-pin"

@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["network-programming"]
 description = "A threaded DNS server with no `unsafe`"
-edition = "2018"
+edition = "2021"
 keywords = ["dns", "server", "safe"]
 license = "Apache-2.0"
 name = "dns-server"

@@ -66,11 +66,11 @@ use fixed_buffer::FixedBuf;
 pub struct DnsName(String);
 impl DnsName {
     fn is_letter(b: u8) -> bool {
-        (b'a'..=b'z').contains(&b) || (b'A'..=b'Z').contains(&b)
+        b.is_ascii_lowercase() || b.is_ascii_uppercase()
     }
 
     fn is_letter_digit(b: u8) -> bool {
-        Self::is_letter(b) || (b'0'..=b'9').contains(&b)
+        Self::is_letter(b) || b.is_ascii_digit()
     }
 
     fn is_letter_digit_hyphen(b: u8) -> bool {
@@ -99,7 +99,7 @@ impl DnsName {
     pub fn new(value: &str) -> Result<Self, String> {
         let trimmed = value.strip_suffix('.').unwrap_or(value);
         if trimmed.len() > 255 || !Self::is_valid_name(trimmed) {
-            return Err(format!("not a valid DNS name: {:?}", value));
+            return Err(format!("not a valid DNS name: {value:?}"));
         }
         Ok(Self(trimmed.to_ascii_lowercase()))
     }
@@ -202,15 +202,15 @@ fn test_new_label_separators() {
 fn test_new_label_charset() {
     const ALLOWED: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.";
     for c in ALLOWED.chars() {
-        let value = format!("a{}a", c);
+        let value = format!("a{c}a");
         DnsName::new(&value).expect(&value);
     }
     for b in 0..=255_u8 {
         let c = char::from(b);
         if !ALLOWED.contains(c) {
-            let value = format!("a{}a", c);
+            let value = format!("a{c}a");
             assert_eq!(
-                <Result<DnsName, String>>::Err(format!("not a valid DNS name: {:?}", value)),
+                <Result<DnsName, String>>::Err(format!("not a valid DNS name: {value:?}")),
                 DnsName::new(&value)
             );
         }

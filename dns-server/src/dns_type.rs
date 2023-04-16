@@ -93,7 +93,7 @@ impl Display for DnsType {
             DnsType::SOA => write!(f, "SOA"),
             DnsType::TXT => write!(f, "TXT"),
             DnsType::ANY => write!(f, "ANY"),
-            DnsType::Unknown(n) => write!(f, "Unknown({})", n),
+            DnsType::Unknown(n) => write!(f, "Unknown({n})"),
         }
     }
 }

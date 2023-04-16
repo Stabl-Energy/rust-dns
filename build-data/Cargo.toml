@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["development-tools::build-utils"]
 description = "Include build data in your program: date, rustc version, git commit & branch, etc."
-edition = "2018"
+edition = "2021"
 keywords = ["build", "info", "data", "commit", "branch"]
 license = "Apache-2.0"
 name = "build-data"

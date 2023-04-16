@@ -2,7 +2,7 @@
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["data-structures"]
 description = "AnyRange<T> enum can hold any Range*<T> type"
-edition = "2018"
+edition = "2021"
 keywords = ["range", "any"]
 license = "Apache-2.0"
 name = "any-range"

@@ -42,7 +42,7 @@ impl Key {
 impl Debug for Key {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Key::Static(x) => write!(f, "Key::Static({})", x),
+            Key::Static(x) => write!(f, "Key::Static({x})"),
             Key::Random(_) => write!(f, "Key::Random"),
         }
     }
@@ -114,13 +114,10 @@ fn simulate(
         heap.push(Entry(next_request_instant, client));
         num_requests += 1;
     }
-    println!(
-        "Simulated {} request over {} seconds",
-        num_requests, num_seconds
-    );
+    println!("Simulated {num_requests} request over {num_seconds} seconds");
     for rc_ref_cell_client in clients {
         let client: Ref<Client> = rc_ref_cell_client.borrow();
-        println!("client: {:?}", client);
+        println!("client: {client:?}");
     }
 }
 

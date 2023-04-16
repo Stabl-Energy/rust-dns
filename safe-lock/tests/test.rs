@@ -32,7 +32,7 @@ fn quick_unblock() {
     std::thread::sleep(Duration::from_millis(50));
     let _guard = LOCK.lock();
     let elapsed = std::time::Instant::now().saturating_duration_since(before);
-    assert!((100..150).contains(&elapsed.as_millis()), "{:?}", elapsed);
+    assert!((100..150).contains(&elapsed.as_millis()), "{elapsed:?}");
 }
 
 #[test]

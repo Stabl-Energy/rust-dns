@@ -64,14 +64,12 @@ fn exec_cargo_bin(name: &str) -> String {
 }
 
 fn expect_elapsed(before: Instant, range_ms: Range<u64>) {
-    assert!(!range_ms.is_empty(), "invalid range {:?}", range_ms);
+    assert!(!range_ms.is_empty(), "invalid range {range_ms:?}");
     let elapsed = before.elapsed();
     let duration_range = Duration::from_millis(range_ms.start)..Duration::from_millis(range_ms.end);
     assert!(
         duration_range.contains(&elapsed),
-        "{:?} elapsed, out of range {:?}",
-        elapsed,
-        duration_range
+        "{elapsed:?} elapsed, out of range {duration_range:?}",
     );
 }
 
@@ -243,7 +241,7 @@ fn get_git_branch() {
     let _guard = LOCK.lock().unwrap();
     let value: String = build_data::get_git_branch().unwrap();
     let matcher: safe_regex::Matcher0<_> = safe_regex::regex!(br"[-_.+a-zA-Z0-9]+");
-    assert!(matcher.is_match(value.as_bytes()), "{:?}", value);
+    assert!(matcher.is_match(value.as_bytes()), "{value:?}");
 
     assert_eq!(
         format!("cargo:rustc-env=GIT_BRANCH={value}\n"),
@@ -510,9 +508,8 @@ fn set_build_date() {
         chrono::NaiveDate::parse_from_str(&stdout, "cargo:rustc-env=BUILD_DATE=%Y-%m-%dZ\n")
             .map_err(|e| {
                 format!(
-                    "error parsing output '{}': {}",
+                    "error parsing output '{}': {e}",
                     build_data::escape_ascii(&stdout),
-                    e
                 )
             })
             .unwrap();
@@ -528,9 +525,8 @@ fn set_build_time() {
     let time = chrono::NaiveTime::parse_from_str(&stdout, "cargo:rustc-env=BUILD_TIME=%H:%M:%SZ\n")
         .map_err(|e| {
             format!(
-                "error parsing output '{}': {}",
+                "error parsing output '{}': {e}",
                 build_data::escape_ascii(&stdout),
-                e
             )
         })
         .unwrap();
@@ -556,9 +552,8 @@ fn set_build_timestamp() {
         )
         .map_err(|e| {
             format!(
-                "error parsing output '{}': {}",
+                "error parsing output '{}': {e}",
                 build_data::escape_ascii(&stdout),
-                e
             )
         })
         .unwrap()
@@ -576,9 +571,8 @@ fn set_build_epoch_time() {
         .datetime_from_str(&stdout, "cargo:rustc-env=BUILD_EPOCH_TIME=%s\n")
         .map_err(|e| {
             format!(
-                "error parsing output '{}': {}",
+                "error parsing output '{}': {e}",
                 build_data::escape_ascii(&stdout),
-                e
             )
         })
         .unwrap()

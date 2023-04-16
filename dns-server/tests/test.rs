@@ -102,7 +102,7 @@ fn hard_coded() {
     client_sock
         .set_read_timeout(Some(Duration::from_secs(1)))
         .unwrap();
-    client_sock.connect(&addr).unwrap();
+    client_sock.connect(addr).unwrap();
     let mut buf = [0_u8; 512];
     // request type=A
     client_sock
