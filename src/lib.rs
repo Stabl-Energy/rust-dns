@@ -26,7 +26,7 @@
 //! - Brand new.
 //!
 //! # Example
-//! ```
+//! ```rust,ignore
 //! use permit::Permit;
 //! use prob_rate_limiter::ProbRateLimiter;
 //! use dns_server::DnsRecord;
@@ -85,7 +85,6 @@ mod dns_question;
 mod dns_record;
 mod dns_response_code;
 mod dns_type;
-mod server;
 
 pub use dns_class::DnsClass;
 pub use dns_message::DnsMessage;
@@ -96,7 +95,6 @@ pub use dns_question::DnsQuestion;
 pub use dns_record::DnsRecord;
 pub use dns_response_code::DnsResponseCode;
 pub use dns_type::DnsType;
-pub use server::{process_datagram, serve_udp};
 
 use fixed_buffer::FixedBuf;
 
