@@ -1,3 +1,8 @@
+# NOTE:
+#
+# This file was changed from the original by updating the crate name and removing
+# obsolete dependencies.
+
 [package]
 authors = ["Michael Leonhard <michael@leonhardllc.com>"]
 categories = ["network-programming"]

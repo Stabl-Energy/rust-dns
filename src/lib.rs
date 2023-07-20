@@ -1,3 +1,8 @@
+// NOTE:
+//
+// This file was changed from the original by removing obsolete documentation
+// and imports.
+
 //! dns-server
 //! ========
 //! [![crates.io version](https://img.shields.io/crates/v/dns-server.svg)](https://crates.io/crates/dns-server)

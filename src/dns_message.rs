@@ -1,3 +1,8 @@
+// NOTE:
+//
+// This file was changed from the original by removing the field `additional`
+// from the `DnsMessage` struct.
+
 use crate::{DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode};
 use fixed_buffer::FixedBuf;
 use std::convert::TryFrom;
