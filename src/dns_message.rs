@@ -1,8 +1,3 @@
-// NOTE:
-//
-// This file was changed from the original by removing the field `additional`
-// from the `DnsMessage` struct.
-
 use crate::{DnsError, DnsMessageHeader, DnsQuestion, DnsRecord, DnsResponseCode};
 use fixed_buffer::FixedBuf;
 use std::convert::TryFrom;
@@ -66,7 +61,12 @@ impl DnsMessage {
         for question in &self.questions {
             question.write(out)?;
         }
-        for record in self.answers.iter().chain(self.name_servers.iter()) {
+        for record in self
+            .answers
+            .iter()
+            .chain(self.name_servers.iter())
+            .chain(self.additional.iter())
+        {
             record.write(out)?;
         }
         Ok(())
@@ -98,6 +98,7 @@ impl DnsMessage {
             questions: self.questions.clone(),
             answers,
             name_servers: Vec::new(),
+            additional: Vec::new(),
         })
     }
 
@@ -122,6 +123,7 @@ impl DnsMessage {
             questions: self.questions.clone(),
             answers: Vec::new(),
             name_servers: Vec::new(),
+            additional: Vec::new(),
         })
     }
 }
