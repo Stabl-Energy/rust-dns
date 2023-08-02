@@ -152,17 +152,17 @@ impl DnsRecord {
             return Err(DnsError::InvalidClass);
         }
         let _ttl_seconds = read_u32_be(buf)?;
-        let mut rdata = Self::read_rdata(buf)?;
+        let rdata = Self::read_rdata(buf)?;
         match typ {
             DnsType::A => {
-                let octets: [u8; 4] = read_exact(&mut rdata)?;
+                let octets: [u8; 4] = read_exact(rdata)?;
                 Ok(DnsRecord::A(name, Ipv4Addr::from(octets)))
             }
             DnsType::AAAA => {
-                let octets: [u8; 16] = read_exact(&mut rdata)?;
+                let octets: [u8; 16] = read_exact(rdata)?;
                 Ok(DnsRecord::AAAA(name, Ipv6Addr::from(octets)))
             }
-            DnsType::CNAME => Ok(DnsRecord::CNAME(name, DnsName::read(&mut rdata)?)),
+            DnsType::CNAME => Ok(DnsRecord::CNAME(name, DnsName::read(rdata)?)),
             DnsType::MX
             | DnsType::NS
             | DnsType::PTR
