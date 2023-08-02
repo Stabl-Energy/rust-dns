@@ -61,17 +61,12 @@ pub enum DnsRecord {
 impl DnsRecord {
     /// # Errors
     /// Returns an error when `buf` does not contain a valid resource record.
-    pub fn read_rdata<const N: usize>(buf: &mut FixedBuf<N>) -> Result<FixedBuf<65535>, DnsError> {
+    fn read_rdata<const N: usize>(buf: &mut FixedBuf<N>) -> Result<&mut FixedBuf<N>, DnsError> {
         let len = read_u16_be(buf)?;
         if buf.len() < (len as usize) {
             return Err(DnsError::Truncated);
         }
-        let borrowed_rdata = buf.read_bytes(len as usize);
-        let mut rdata: FixedBuf<65535> = FixedBuf::new();
-        rdata
-            .write_bytes(borrowed_rdata)
-            .map_err(|_| DnsError::Unreachable(file!(), line!()))?;
-        Ok(rdata)
+        Ok(buf)
     }
 
     /// # Errors

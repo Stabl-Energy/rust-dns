@@ -13,6 +13,7 @@ pub struct DnsMessage {
     pub questions: Vec<DnsQuestion>,
     pub answers: Vec<DnsRecord>,
     pub name_servers: Vec<DnsRecord>,
+    pub additional: Vec<DnsRecord>,
 }
 impl DnsMessage {
     /// # Errors
@@ -40,11 +41,21 @@ impl DnsMessage {
             let record = DnsRecord::read(buf)?;
             name_servers.push(record);
         }
+        let mut additional = Vec::with_capacity(header.additional_count as usize);
+        for _ in 0..header.additional_count {
+            #[allow(clippy::single_match)]
+            match DnsRecord::read(buf) {
+                Ok(record) => additional.push(record),
+                // Ignore invalid additional records.
+                Err(_) => {}
+            }
+        }
         Ok(Self {
             header,
             questions,
             answers,
             name_servers,
+            additional,
         })
     }
 
