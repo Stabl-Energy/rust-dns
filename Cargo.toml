@@ -1,15 +1,19 @@
-# https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
-[workspace]
-members = [
-    "any-range",
-    "build-data",
-    "build-data-test",
-    "dns-server",
-    "fair-rate-limiter",
-    "permit",
-    "prob-rate-limiter",
-    "rustls-pin",
-    "safe-lock",
-    "temp-dir",
-    "temp-file",
-]
+[package]
+authors = ["Michael Leonhard <michael@leonhardllc.com>"]
+categories = ["network-programming"]
+description = "A threaded DNS server with no `unsafe`"
+edition = "2021"
+keywords = ["dns", "server", "safe"]
+license = "Apache-2.0"
+name = "dns-server"
+readme = "Readme.md"
+repository = "https://gitlab.com/leonhard-llc/ops"
+version = "0.1.0"
+
+[dependencies]
+fixed-buffer = "^0.3.1"
+multimap = "^0.8.3"
+permit = "^0.1.4"
+prob-rate-limiter = { version = "^0.1.0", path = "../prob-rate-limiter" }
+
+[dev-dependencies]
